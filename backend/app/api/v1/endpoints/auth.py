@@ -1,18 +1,35 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from app.db.session import get_db
-from app.core.security import hash_password, verify_password, create_access_token
-from app.core.deps import get_current_user
+from fastapi import APIRouter, HTTPException, status
+
+from app.core.deps import CurrentUser, DbSession
+from app.core.security import create_access_token, hash_password, verify_password
 from app.models.user import User, RoleEnum
-from app.schemas.user import UserCreate, UserOut, TokenOut, LoginIn, UserUpdate
+from app.schemas.user import LoginIn, TokenOut, UserCreate, UserOut, UserUpdate
 
 router = APIRouter(prefix="/auth", tags=["Authentification"])
 
 
-@router.post("/register", response_model=UserOut, status_code=201, summary="US-02-01 — Inscription")
-def register(payload: UserCreate, db: Session = Depends(get_db)):
+@router.post(
+    "/register",
+    response_model=UserOut,
+    status_code=201,
+    summary="US-02-01 — Inscription",
+    responses={
+        status.HTTP_409_CONFLICT: {
+            "description": "Email déjà utilisé — un compte existe avec cette adresse",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Un compte existe déjà avec cet email"},
+                },
+            },
+        },
+    },
+)
+def register(payload: UserCreate, db: DbSession):
     if db.query(User).filter(User.email == payload.email).first():
-        raise HTTPException(status_code=409, detail="Un compte existe déjà avec cet email")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Un compte existe déjà avec cet email",
+        )
 
     user = User(
         email=payload.email,
@@ -29,8 +46,30 @@ def register(payload: UserCreate, db: Session = Depends(get_db)):
     return user
 
 
-@router.post("/login", response_model=TokenOut, summary="US-02-02 — Connexion")
-def login(payload: LoginIn, db: Session = Depends(get_db)):
+@router.post(
+    "/login",
+    response_model=TokenOut,
+    summary="US-02-02 — Connexion",
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Identifiants incorrects (message volontairement générique)",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Identifiants incorrects"},
+                },
+            },
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "Compte désactivé",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Compte désactivé"},
+                },
+            },
+        },
+    },
+)
+def login(payload: LoginIn, db: DbSession):
     user = (
         db.query(User)
         .filter(
@@ -47,22 +86,25 @@ def login(payload: LoginIn, db: Session = Depends(get_db)):
             detail="Identifiants incorrects",
         )
     if not user.is_active:
-        raise HTTPException(status_code=403, detail="Compte désactivé")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Compte désactivé",
+        )
 
     token = create_access_token(subject=str(user.id), role=user.role.value)
     return TokenOut(access_token=token, user=UserOut.model_validate(user))
 
 
 @router.get("/me", response_model=UserOut, summary="US-02-04 — Profil courant")
-def get_me(current_user: User = Depends(get_current_user)):
+def get_me(current_user: CurrentUser):
     return current_user
 
 
 @router.patch("/me", response_model=UserOut, summary="US-02-04 — Modifier le profil")
 def update_me(
     payload: UserUpdate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    db: DbSession,
+    current_user: CurrentUser,
 ):
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(current_user, field, value)
@@ -73,8 +115,8 @@ def update_me(
 
 @router.delete("/me", status_code=204, summary="US-11-05 — Droit à l'effacement RGPD")
 def delete_me(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    db: DbSession,
+    current_user: CurrentUser,
 ):
     from datetime import datetime, timezone
 

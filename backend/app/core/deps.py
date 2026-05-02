@@ -1,17 +1,23 @@
+from typing import Annotated
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.orm import Session
 from jose import JWTError
-from app.db.session import get_db
+from sqlalchemy.orm import Session
+
 from app.core.security import decode_token
+from app.db.session import get_db
 from app.models.user import User, RoleEnum
 
 bearer = HTTPBearer()
 
+DbSession = Annotated[Session, Depends(get_db)]
+BearerCredentials = Annotated[HTTPAuthorizationCredentials, Depends(bearer)]
+
 
 def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(bearer),
-    db: Session = Depends(get_db),
+    credentials: BearerCredentials,
+    db: DbSession,
 ) -> User:
     token = credentials.credentials
     try:
@@ -29,8 +35,11 @@ def get_current_user(
     return user
 
 
+CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
 def require_role(*roles: RoleEnum):
-    def checker(current_user: User = Depends(get_current_user)) -> User:
+    def checker(current_user: CurrentUser) -> User:
         if current_user.role not in roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -41,7 +50,8 @@ def require_role(*roles: RoleEnum):
     return checker
 
 
-# Shortcut dependencies
 require_gestionnaire = require_role(RoleEnum.gestionnaire, RoleEnum.superviseur, RoleEnum.admin)
 require_superviseur = require_role(RoleEnum.superviseur, RoleEnum.admin)
 require_admin = require_role(RoleEnum.admin)
+
+GestionnaireUser = Annotated[User, Depends(require_gestionnaire)]

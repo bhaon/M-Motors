@@ -2,10 +2,10 @@ import secrets
 import string
 from datetime import datetime, timezone
 from typing import cast
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy.orm import Session
-from app.db.session import get_db
-from app.core.deps import get_current_user, require_gestionnaire
+
+from app.core.deps import CurrentUser, DbSession, GestionnaireUser
 from app.models.dossier import Dossier, DossierStatusEnum, DossierHistorique
 from app.models.user import User
 from app.models.vehicle import Vehicle
@@ -41,8 +41,8 @@ def _add_historique(db, dossier_id, ancien, nouveau, commentaire=None, operateur
 @router.post("", response_model=DossierOut, status_code=201, summary="US-03-01 — Créer un dossier")
 def create_dossier(
     payload: DossierCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    db: DbSession,
+    current_user: CurrentUser,
 ):
     vehicle = (
         db.query(Vehicle)
@@ -77,8 +77,8 @@ def create_dossier(
 @router.post("/{dossier_id}/soumettre", response_model=DossierOut, summary="US-03-04 — Soumettre le dossier")
 def submit_dossier(
     dossier_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    db: DbSession,
+    current_user: CurrentUser,
 ):
     dossier = _get_own_dossier(db, dossier_id, current_user)
 
@@ -100,8 +100,8 @@ def submit_dossier(
 
 @router.get("/mes-dossiers", response_model=DossierListOut, summary="US-04-01 — Tableau de bord client")
 def list_my_dossiers(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    db: DbSession,
+    current_user: CurrentUser,
 ):
     dossiers = db.query(Dossier).filter(Dossier.client_id == current_user.id).order_by(Dossier.created_at.desc()).all()
     return DossierListOut(total=len(dossiers), items=cast(list[DossierOut], dossiers))
@@ -110,8 +110,8 @@ def list_my_dossiers(
 @router.get("/mes-dossiers/{dossier_id}", response_model=DossierOut, summary="US-04-02 — Détail dossier client")
 def get_my_dossier(
     dossier_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    db: DbSession,
+    current_user: CurrentUser,
 ):
     return _get_own_dossier(db, dossier_id, current_user)
 
@@ -123,12 +123,12 @@ def get_my_dossier(
 
 @router.get("", response_model=DossierListOut, summary="US-06-01 — Liste back-office")
 def list_dossiers_bo(
+    db: DbSession,
+    _: GestionnaireUser,
     status: str = Query(None),
     type_contrat: str = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
-    db: Session = Depends(get_db),
-    _: User = Depends(require_gestionnaire),
 ):
     q = db.query(Dossier)
     if status:
@@ -143,8 +143,8 @@ def list_dossiers_bo(
 @router.get("/{dossier_id}", response_model=DossierOut, summary="US-06-03 — Détail dossier back-office")
 def get_dossier_bo(
     dossier_id: int,
-    db: Session = Depends(get_db),
-    _: User = Depends(require_gestionnaire),
+    db: DbSession,
+    _: GestionnaireUser,
 ):
     d = db.query(Dossier).filter(Dossier.id == dossier_id).first()
     if not d:
@@ -155,8 +155,8 @@ def get_dossier_bo(
 @router.post("/{dossier_id}/prendre-en-charge", response_model=DossierOut, summary="US-06-02 — Prise en charge")
 def take_charge(
     dossier_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_gestionnaire),
+    db: DbSession,
+    current_user: GestionnaireUser,
 ):
     d = db.query(Dossier).filter(Dossier.id == dossier_id).first()
     if not d:
@@ -176,8 +176,8 @@ def take_charge(
 @router.post("/{dossier_id}/valider", response_model=DossierOut, summary="US-06-04 — Valider un dossier")
 def validate_dossier(
     dossier_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_gestionnaire),
+    db: DbSession,
+    current_user: GestionnaireUser,
 ):
     d = db.query(Dossier).filter(Dossier.id == dossier_id).first()
     if not d:
@@ -198,8 +198,8 @@ def validate_dossier(
 def reject_dossier(
     dossier_id: int,
     payload: DossierRejectIn,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_gestionnaire),
+    db: DbSession,
+    current_user: GestionnaireUser,
 ):
     if len(payload.motif.strip()) < 20:
         raise HTTPException(status_code=422, detail="Le motif doit comporter au moins 20 caractères")

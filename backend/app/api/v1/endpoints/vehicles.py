@@ -1,10 +1,9 @@
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
-from app.db.session import get_db
-from app.core.deps import require_gestionnaire
-from app.models.vehicle import Vehicle, MoteurEnum
-from app.models.user import User
+
+from fastapi import APIRouter, HTTPException, Query
+
+from app.core.deps import DbSession, GestionnaireUser
+from app.models.vehicle import MoteurEnum, Vehicle
 from app.schemas.vehicle import VehicleOut, VehicleListOut, VehicleCreate, VehicleUpdate
 
 router = APIRouter(prefix="/vehicules", tags=["Véhicules"])
@@ -17,6 +16,7 @@ router = APIRouter(prefix="/vehicules", tags=["Véhicules"])
 
 @router.get("", response_model=VehicleListOut, summary="US-01-01/03 — Catalogue public avec filtres")
 def list_vehicles(
+    db: DbSession,
     marque: Optional[str] = Query(None),
     modele: Optional[str] = Query(None),
     moteur: Optional[MoteurEnum] = Query(None),
@@ -25,7 +25,6 @@ def list_vehicles(
     type_contrat: Optional[str] = Query(None, alias="type"),  # all | achat | lld
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
-    db: Session = Depends(get_db),
 ):
     q = db.query(Vehicle).filter(
         Vehicle.archived == False,
@@ -56,7 +55,7 @@ def list_vehicles(
 
 
 @router.get("/marques", summary="US-01-03 — Liste des marques disponibles")
-def list_marques(db: Session = Depends(get_db)):
+def list_marques(db: DbSession):
     rows = (
         db.query(Vehicle.make)
         .filter(Vehicle.archived == False, Vehicle.visible_catalogue == True)
@@ -68,7 +67,7 @@ def list_marques(db: Session = Depends(get_db)):
 
 
 @router.get("/{vehicle_id}", response_model=VehicleOut, summary="US-01-04 — Fiche détaillée")
-def get_vehicle(vehicle_id: int, db: Session = Depends(get_db)):
+def get_vehicle(vehicle_id: int, db: DbSession):
     v = (
         db.query(Vehicle)
         .filter(
@@ -90,8 +89,8 @@ def get_vehicle(vehicle_id: int, db: Session = Depends(get_db)):
 @router.post("", response_model=VehicleOut, status_code=201, summary="US-05-01 — Créer un véhicule")
 def create_vehicle(
     payload: VehicleCreate,
-    db: Session = Depends(get_db),
-    _: User = Depends(require_gestionnaire),
+    db: DbSession,
+    _: GestionnaireUser,
 ):
     v = Vehicle(**payload.model_dump())
     db.add(v)
@@ -104,8 +103,8 @@ def create_vehicle(
 def update_vehicle(
     vehicle_id: int,
     payload: VehicleUpdate,
-    db: Session = Depends(get_db),
-    _: User = Depends(require_gestionnaire),
+    db: DbSession,
+    _: GestionnaireUser,
 ):
     v = db.query(Vehicle).filter(Vehicle.id == vehicle_id, Vehicle.archived == False).first()
     if not v:
@@ -120,8 +119,8 @@ def update_vehicle(
 @router.post("/{vehicle_id}/toggle-lld", response_model=VehicleOut, summary="US-05-03 — Basculer Achat ↔ LLD")
 def toggle_lld(
     vehicle_id: int,
-    db: Session = Depends(get_db),
-    _: User = Depends(require_gestionnaire),
+    db: DbSession,
+    _: GestionnaireUser,
 ):
     v = db.query(Vehicle).filter(Vehicle.id == vehicle_id, Vehicle.archived == False).first()
     if not v:
@@ -137,8 +136,8 @@ def toggle_lld(
 @router.delete("/{vehicle_id}", status_code=204, summary="US-05-04 — Archiver (soft delete)")
 def archive_vehicle(
     vehicle_id: int,
-    db: Session = Depends(get_db),
-    _: User = Depends(require_gestionnaire),
+    db: DbSession,
+    _: GestionnaireUser,
 ):
     from datetime import datetime, timezone
 
