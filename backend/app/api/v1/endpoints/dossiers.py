@@ -1,39 +1,41 @@
 import random
 import string
 from datetime import datetime, timezone
+from typing import cast
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_gestionnaire, require_superviseur
+from app.core.deps import get_current_user, require_gestionnaire
 from app.models.dossier import Dossier, DossierStatusEnum, DossierHistorique
-from app.models.user import User, RoleEnum
+from app.models.user import User
 from app.models.vehicle import Vehicle
-from app.schemas.dossier import (
-    DossierCreate, DossierOut, DossierListOut, DossierRejectIn
-)
+from app.schemas.dossier import DossierCreate, DossierOut, DossierListOut, DossierRejectIn
 
 router = APIRouter(prefix="/dossiers", tags=["Dossiers"])
 
 
 def _generate_reference() -> str:
     year = datetime.now().year
-    suffix = ''.join(random.choices(string.digits, k=5))
+    suffix = "".join(random.choices(string.digits, k=5))
     return f"DOS-{year}-{suffix}"
 
 
 def _add_historique(db, dossier_id, ancien, nouveau, commentaire=None, operateur_id=None):
-    db.add(DossierHistorique(
-        dossier_id=dossier_id,
-        ancien_status=ancien,
-        nouveau_status=nouveau,
-        commentaire=commentaire,
-        operateur_id=operateur_id,
-    ))
+    db.add(
+        DossierHistorique(
+            dossier_id=dossier_id,
+            ancien_status=ancien,
+            nouveau_status=nouveau,
+            commentaire=commentaire,
+            operateur_id=operateur_id,
+        )
+    )
 
 
 # ──────────────────────────────────────────────
 # EP-03 — Dépôt de dossier (client)
 # ──────────────────────────────────────────────
+
 
 @router.post("", response_model=DossierOut, status_code=201, summary="US-03-01 — Créer un dossier")
 def create_dossier(
@@ -41,10 +43,14 @@ def create_dossier(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    vehicle = db.query(Vehicle).filter(
-        Vehicle.id == payload.vehicle_id,
-        Vehicle.archived == False,
-    ).first()
+    vehicle = (
+        db.query(Vehicle)
+        .filter(
+            Vehicle.id == payload.vehicle_id,
+            Vehicle.archived == False,
+        )
+        .first()
+    )
     if not vehicle:
         raise HTTPException(status_code=404, detail="Véhicule introuvable")
 
@@ -90,18 +96,14 @@ def submit_dossier(
 # EP-04 — Espace client
 # ──────────────────────────────────────────────
 
+
 @router.get("/mes-dossiers", response_model=DossierListOut, summary="US-04-01 — Tableau de bord client")
 def list_my_dossiers(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    dossiers = (
-        db.query(Dossier)
-        .filter(Dossier.client_id == current_user.id)
-        .order_by(Dossier.created_at.desc())
-        .all()
-    )
-    return DossierListOut(total=len(dossiers), items=dossiers)
+    dossiers = db.query(Dossier).filter(Dossier.client_id == current_user.id).order_by(Dossier.created_at.desc()).all()
+    return DossierListOut(total=len(dossiers), items=cast(list[DossierOut], dossiers))
 
 
 @router.get("/mes-dossiers/{dossier_id}", response_model=DossierOut, summary="US-04-02 — Détail dossier client")
@@ -116,6 +118,7 @@ def get_my_dossier(
 # ──────────────────────────────────────────────
 # EP-06 — Instruction back-office (gestionnaire+)
 # ──────────────────────────────────────────────
+
 
 @router.get("", response_model=DossierListOut, summary="US-06-01 — Liste back-office")
 def list_dossiers_bo(
@@ -133,7 +136,7 @@ def list_dossiers_bo(
         q = q.filter(Dossier.type == type_contrat)
     total = q.count()
     items = q.order_by(Dossier.created_at.asc()).offset(skip).limit(limit).all()
-    return DossierListOut(total=total, items=items)
+    return DossierListOut(total=total, items=cast(list[DossierOut], items))
 
 
 @router.get("/{dossier_id}", response_model=DossierOut, summary="US-06-03 — Détail dossier back-office")
@@ -220,11 +223,16 @@ def reject_dossier(
 # Helpers
 # ──────────────────────────────────────────────
 
+
 def _get_own_dossier(db: Session, dossier_id: int, user: User) -> Dossier:
-    d = db.query(Dossier).filter(
-        Dossier.id == dossier_id,
-        Dossier.client_id == user.id,
-    ).first()
+    d = (
+        db.query(Dossier)
+        .filter(
+            Dossier.id == dossier_id,
+            Dossier.client_id == user.id,
+        )
+        .first()
+    )
     if not d:
         raise HTTPException(status_code=404, detail="Dossier introuvable")
     return d

@@ -31,10 +31,14 @@ def register(payload: UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=TokenOut, summary="US-02-02 — Connexion")
 def login(payload: LoginIn, db: Session = Depends(get_db)):
-    user = db.query(User).filter(
-        User.email == payload.email,
-        User.deleted_at.is_(None),
-    ).first()
+    user = (
+        db.query(User)
+        .filter(
+            User.email == payload.email,
+            User.deleted_at.is_(None),
+        )
+        .first()
+    )
 
     # Message générique (US-02-02 — ne pas indiquer si c'est l'email ou le mdp)
     if not user or not verify_password(payload.password, user.hashed_password):
@@ -73,6 +77,7 @@ def delete_me(
     current_user: User = Depends(get_current_user),
 ):
     from datetime import datetime, timezone
+
     current_user.deleted_at = datetime.now(timezone.utc)
     current_user.is_active = False
     db.commit()

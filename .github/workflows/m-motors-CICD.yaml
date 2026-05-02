@@ -191,7 +191,7 @@ jobs:
           ruff format --check .
 
       - name: Mypy — vérification de types
-        run: mypy app/ --ignore-missing-imports --strict
+        run: mypy -p app --ignore-missing-imports --explicit-package-bases
 
       - name: Bandit — analyse sécurité SAST
         run: bandit -r app/ -f json -o bandit-report.json

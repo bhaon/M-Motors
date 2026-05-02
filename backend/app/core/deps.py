@@ -16,9 +16,10 @@ def get_current_user(
     token = credentials.credentials
     try:
         payload = decode_token(token)
-        user_id: str = payload.get("sub")
-        if user_id is None:
+        sub = payload.get("sub")
+        if sub is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token invalide")
+        user_id = str(sub)
     except JWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token invalide ou expiré")
 
@@ -36,10 +37,11 @@ def require_role(*roles: RoleEnum):
                 detail=f"Rôle requis : {[r.value for r in roles]}",
             )
         return current_user
+
     return checker
 
 
 # Shortcut dependencies
 require_gestionnaire = require_role(RoleEnum.gestionnaire, RoleEnum.superviseur, RoleEnum.admin)
-require_superviseur   = require_role(RoleEnum.superviseur, RoleEnum.admin)
-require_admin         = require_role(RoleEnum.admin)
+require_superviseur = require_role(RoleEnum.superviseur, RoleEnum.admin)
+require_admin = require_role(RoleEnum.admin)

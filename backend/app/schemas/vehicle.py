@@ -29,6 +29,7 @@ class VehicleSpecsOut(BaseModel):
 
 class VehicleOut(BaseModel):
     """Schéma de sortie compatible avec l'interface Vehicle du front Next.js"""
+
     model_config = ConfigDict(from_attributes=True)
 
     id: int

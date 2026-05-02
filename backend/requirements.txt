@@ -7,5 +7,7 @@ pydantic==2.7.4
 pydantic-settings==2.3.4
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
+# passlib 1.7.4 n'est pas compatible avec bcrypt 4.x (init / __about__)
+bcrypt==3.2.2
 python-multipart==0.0.9
 httpx==0.27.0

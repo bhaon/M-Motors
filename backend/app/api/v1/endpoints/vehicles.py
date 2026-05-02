@@ -1,13 +1,11 @@
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_gestionnaire
+from app.core.deps import require_gestionnaire
 from app.models.vehicle import Vehicle, MoteurEnum
 from app.models.user import User
-from app.schemas.vehicle import (
-    VehicleOut, VehicleListOut, VehicleCreate, VehicleUpdate
-)
+from app.schemas.vehicle import VehicleOut, VehicleListOut, VehicleCreate, VehicleUpdate
 
 router = APIRouter(prefix="/vehicules", tags=["Véhicules"])
 
@@ -16,14 +14,15 @@ router = APIRouter(prefix="/vehicules", tags=["Véhicules"])
 # EP-01 — Public (US-01-01 à US-01-05)
 # ──────────────────────────────────────────────
 
+
 @router.get("", response_model=VehicleListOut, summary="US-01-01/03 — Catalogue public avec filtres")
 def list_vehicles(
-    marque:  Optional[str]       = Query(None),
-    modele:  Optional[str]       = Query(None),
-    moteur:  Optional[MoteurEnum] = Query(None),
-    km_max:  Optional[int]       = Query(None, alias="kmMax"),
-    prix_max: Optional[float]    = Query(None, alias="prixMax"),
-    type_contrat: Optional[str]  = Query(None, alias="type"),   # all | achat | lld
+    marque: Optional[str] = Query(None),
+    modele: Optional[str] = Query(None),
+    moteur: Optional[MoteurEnum] = Query(None),
+    km_max: Optional[int] = Query(None, alias="kmMax"),
+    prix_max: Optional[float] = Query(None, alias="prixMax"),
+    type_contrat: Optional[str] = Query(None, alias="type"),  # all | achat | lld
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     db: Session = Depends(get_db),
@@ -70,10 +69,14 @@ def list_marques(db: Session = Depends(get_db)):
 
 @router.get("/{vehicle_id}", response_model=VehicleOut, summary="US-01-04 — Fiche détaillée")
 def get_vehicle(vehicle_id: int, db: Session = Depends(get_db)):
-    v = db.query(Vehicle).filter(
-        Vehicle.id == vehicle_id,
-        Vehicle.archived == False,
-    ).first()
+    v = (
+        db.query(Vehicle)
+        .filter(
+            Vehicle.id == vehicle_id,
+            Vehicle.archived == False,
+        )
+        .first()
+    )
     if not v:
         raise HTTPException(status_code=404, detail="Véhicule introuvable")
     return VehicleOut.from_orm_vehicle(v)
@@ -82,6 +85,7 @@ def get_vehicle(vehicle_id: int, db: Session = Depends(get_db)):
 # ──────────────────────────────────────────────
 # EP-05 — Back-office (gestionnaire+)
 # ──────────────────────────────────────────────
+
 
 @router.post("", response_model=VehicleOut, status_code=201, summary="US-05-01 — Créer un véhicule")
 def create_vehicle(
@@ -137,6 +141,7 @@ def archive_vehicle(
     _: User = Depends(require_gestionnaire),
 ):
     from datetime import datetime, timezone
+
     v = db.query(Vehicle).filter(Vehicle.id == vehicle_id, Vehicle.archived == False).first()
     if not v:
         raise HTTPException(status_code=404, detail="Véhicule introuvable")

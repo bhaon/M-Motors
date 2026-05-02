@@ -1,0 +1,9 @@
+# Aligné avec le CI : filtres SQLAlchemy fréquents `== True` / `== False` (E712).
+target-version = "py312"
+line-length = 120
+
+[lint]
+ignore = ["E712"]
+
+[format]
+quote-style = "double"
