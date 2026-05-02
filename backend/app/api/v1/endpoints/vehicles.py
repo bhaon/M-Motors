@@ -1,12 +1,25 @@
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, status
 
+from app.api.v1.openapi_responses import openapi_http_error
 from app.core.deps import DbSession, GestionnaireUser
 from app.models.vehicle import MoteurEnum, Vehicle
-from app.schemas.vehicle import VehicleOut, VehicleListOut, VehicleCreate, VehicleUpdate
+from app.schemas.vehicle import VehicleCreate, VehicleListOut, VehicleOut, VehicleUpdate
 
 router = APIRouter(prefix="/vehicules", tags=["Véhicules"])
+
+_R403_BO = openapi_http_error(
+    status.HTTP_403_FORBIDDEN,
+    "Rôle gestionnaire, superviseur ou admin requis",
+    "Rôle requis : ['gestionnaire', 'superviseur', 'admin']",
+)
+
+_R404_VEHICULE = openapi_http_error(
+    status.HTTP_404_NOT_FOUND,
+    "Véhicule inexistant ou archivé",
+    "Véhicule introuvable",
+)
 
 
 # ──────────────────────────────────────────────
@@ -66,7 +79,12 @@ def list_marques(db: DbSession):
     return [r.make for r in rows]
 
 
-@router.get("/{vehicle_id}", response_model=VehicleOut, summary="US-01-04 — Fiche détaillée")
+@router.get(
+    "/{vehicle_id}",
+    response_model=VehicleOut,
+    summary="US-01-04 — Fiche détaillée",
+    responses={**_R404_VEHICULE},
+)
 def get_vehicle(vehicle_id: int, db: DbSession):
     v = (
         db.query(Vehicle)
@@ -77,7 +95,10 @@ def get_vehicle(vehicle_id: int, db: DbSession):
         .first()
     )
     if not v:
-        raise HTTPException(status_code=404, detail="Véhicule introuvable")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Véhicule introuvable",
+        )
     return VehicleOut.from_orm_vehicle(v)
 
 
@@ -86,7 +107,13 @@ def get_vehicle(vehicle_id: int, db: DbSession):
 # ──────────────────────────────────────────────
 
 
-@router.post("", response_model=VehicleOut, status_code=201, summary="US-05-01 — Créer un véhicule")
+@router.post(
+    "",
+    response_model=VehicleOut,
+    status_code=201,
+    summary="US-05-01 — Créer un véhicule",
+    responses={**_R403_BO},
+)
 def create_vehicle(
     payload: VehicleCreate,
     db: DbSession,
@@ -99,7 +126,15 @@ def create_vehicle(
     return VehicleOut.from_orm_vehicle(v)
 
 
-@router.patch("/{vehicle_id}", response_model=VehicleOut, summary="US-05-02 — Modifier un véhicule")
+@router.patch(
+    "/{vehicle_id}",
+    response_model=VehicleOut,
+    summary="US-05-02 — Modifier un véhicule",
+    responses={
+        **_R403_BO,
+        **_R404_VEHICULE,
+    },
+)
 def update_vehicle(
     vehicle_id: int,
     payload: VehicleUpdate,
@@ -108,7 +143,10 @@ def update_vehicle(
 ):
     v = db.query(Vehicle).filter(Vehicle.id == vehicle_id, Vehicle.archived == False).first()
     if not v:
-        raise HTTPException(status_code=404, detail="Véhicule introuvable")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Véhicule introuvable",
+        )
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(v, field, value)
     db.commit()
@@ -116,7 +154,15 @@ def update_vehicle(
     return VehicleOut.from_orm_vehicle(v)
 
 
-@router.post("/{vehicle_id}/toggle-lld", response_model=VehicleOut, summary="US-05-03 — Basculer Achat ↔ LLD")
+@router.post(
+    "/{vehicle_id}/toggle-lld",
+    response_model=VehicleOut,
+    summary="US-05-03 — Basculer Achat ↔ LLD",
+    responses={
+        **_R403_BO,
+        **_R404_VEHICULE,
+    },
+)
 def toggle_lld(
     vehicle_id: int,
     db: DbSession,
@@ -124,7 +170,10 @@ def toggle_lld(
 ):
     v = db.query(Vehicle).filter(Vehicle.id == vehicle_id, Vehicle.archived == False).first()
     if not v:
-        raise HTTPException(status_code=404, detail="Véhicule introuvable")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Véhicule introuvable",
+        )
     v.lld = not v.lld
     if not v.lld:
         v.mensualite = None
@@ -133,7 +182,15 @@ def toggle_lld(
     return VehicleOut.from_orm_vehicle(v)
 
 
-@router.delete("/{vehicle_id}", status_code=204, summary="US-05-04 — Archiver (soft delete)")
+@router.delete(
+    "/{vehicle_id}",
+    status_code=204,
+    summary="US-05-04 — Archiver (soft delete)",
+    responses={
+        **_R403_BO,
+        **_R404_VEHICULE,
+    },
+)
 def archive_vehicle(
     vehicle_id: int,
     db: DbSession,
@@ -143,7 +200,10 @@ def archive_vehicle(
 
     v = db.query(Vehicle).filter(Vehicle.id == vehicle_id, Vehicle.archived == False).first()
     if not v:
-        raise HTTPException(status_code=404, detail="Véhicule introuvable")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Véhicule introuvable",
+        )
     v.archived = True
     v.archived_at = datetime.now(timezone.utc)
     v.visible_catalogue = False

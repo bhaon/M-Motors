@@ -15,13 +15,13 @@ def _parse_allowed_origins(v: Any) -> List[str]:
     Valeurs par défaut non sensibles si la variable est absente ou vide.
     """
     default: List[str] = [
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://mmotors-frontend:3000",
+        # "http://localhost:3000",
+        # "http://127.0.0.1:3000",
+        # "http://mmotors-frontend:3000",
         "https://localhost:8443",
         "https://127.0.0.1:8443",
-        "http://localhost:8080",
-        "http://127.0.0.1:8080",
+        # "http://localhost:8080",
+        # "http://127.0.0.1:8080",
     ]
     if v is None:
         return default
@@ -73,13 +73,13 @@ class Settings(BaseSettings):
 
     ALLOWED_ORIGINS: Annotated[List[str], BeforeValidator(_parse_allowed_origins)] = Field(
         default_factory=lambda: [
-            "http://localhost:3000",
-            "http://127.0.0.1:3000",
-            "http://mmotors-frontend:3000",
+            # "http://localhost:3000",
+            # "http://127.0.0.1:3000",
+            # "http://mmotors-frontend:3000",
             "https://localhost:8443",
             "https://127.0.0.1:8443",
-            "http://localhost:8080",
-            "http://127.0.0.1:8080",
+            # "http://localhost:8080",
+            # "http://127.0.0.1:8080",
         ],
     )
 

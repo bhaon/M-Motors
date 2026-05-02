@@ -2,16 +2,29 @@ import secrets
 import string
 from datetime import datetime, timezone
 from typing import cast
-from fastapi import APIRouter, HTTPException, Query
+
+from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
+from app.api.v1.openapi_responses import openapi_http_error
 from app.core.deps import CurrentUser, DbSession, GestionnaireUser
-from app.models.dossier import Dossier, DossierStatusEnum, DossierHistorique
+from app.models.dossier import Dossier, DossierHistorique, DossierStatusEnum
 from app.models.user import User
 from app.models.vehicle import Vehicle
-from app.schemas.dossier import DossierCreate, DossierOut, DossierListOut, DossierRejectIn
+from app.schemas.dossier import DossierCreate, DossierListOut, DossierOut, DossierRejectIn
 
 router = APIRouter(prefix="/dossiers", tags=["Dossiers"])
+
+_R401 = openapi_http_error(
+    status.HTTP_401_UNAUTHORIZED,
+    "Authentification requise ou token invalide / expiré",
+    "Token invalide",
+)
+_R403_BO = openapi_http_error(
+    status.HTTP_403_FORBIDDEN,
+    "Rôle gestionnaire, superviseur ou admin requis",
+    "Rôle requis : ['gestionnaire', 'superviseur', 'admin']",
+)
 
 
 def _generate_reference() -> str:
@@ -38,7 +51,20 @@ def _add_historique(db, dossier_id, ancien, nouveau, commentaire=None, operateur
 # ──────────────────────────────────────────────
 
 
-@router.post("", response_model=DossierOut, status_code=201, summary="US-03-01 — Créer un dossier")
+@router.post(
+    "",
+    response_model=DossierOut,
+    status_code=201,
+    summary="US-03-01 — Créer un dossier",
+    responses={
+        **_R401,
+        **openapi_http_error(
+            status.HTTP_404_NOT_FOUND,
+            "Véhicule inexistant, archivé ou hors périmètre",
+            "Véhicule introuvable",
+        ),
+    },
+)
 def create_dossier(
     payload: DossierCreate,
     db: DbSession,
@@ -53,7 +79,10 @@ def create_dossier(
         .first()
     )
     if not vehicle:
-        raise HTTPException(status_code=404, detail="Véhicule introuvable")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Véhicule introuvable",
+        )
 
     ref = _generate_reference()
     while db.query(Dossier).filter(Dossier.reference == ref).first():
@@ -74,7 +103,24 @@ def create_dossier(
     return dossier
 
 
-@router.post("/{dossier_id}/soumettre", response_model=DossierOut, summary="US-03-04 — Soumettre le dossier")
+@router.post(
+    "/{dossier_id}/soumettre",
+    response_model=DossierOut,
+    summary="US-03-04 — Soumettre le dossier",
+    responses={
+        **_R401,
+        **openapi_http_error(
+            status.HTTP_404_NOT_FOUND,
+            "Dossier introuvable ou n’appartenant pas au client",
+            "Dossier introuvable",
+        ),
+        **openapi_http_error(
+            status.HTTP_400_BAD_REQUEST,
+            "Le dossier n’est pas en brouillon",
+            "Seul un dossier en brouillon peut être soumis",
+        ),
+    },
+)
 def submit_dossier(
     dossier_id: int,
     db: DbSession,
@@ -83,7 +129,10 @@ def submit_dossier(
     dossier = _get_own_dossier(db, dossier_id, current_user)
 
     if dossier.status != DossierStatusEnum.brouillon:
-        raise HTTPException(status_code=400, detail="Seul un dossier en brouillon peut être soumis")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Seul un dossier en brouillon peut être soumis",
+        )
 
     dossier.status = DossierStatusEnum.depose
     dossier.submitted_at = datetime.now(timezone.utc)
@@ -98,7 +147,12 @@ def submit_dossier(
 # ──────────────────────────────────────────────
 
 
-@router.get("/mes-dossiers", response_model=DossierListOut, summary="US-04-01 — Tableau de bord client")
+@router.get(
+    "/mes-dossiers",
+    response_model=DossierListOut,
+    summary="US-04-01 — Tableau de bord client",
+    responses={**_R401},
+)
 def list_my_dossiers(
     db: DbSession,
     current_user: CurrentUser,
@@ -107,7 +161,19 @@ def list_my_dossiers(
     return DossierListOut(total=len(dossiers), items=cast(list[DossierOut], dossiers))
 
 
-@router.get("/mes-dossiers/{dossier_id}", response_model=DossierOut, summary="US-04-02 — Détail dossier client")
+@router.get(
+    "/mes-dossiers/{dossier_id}",
+    response_model=DossierOut,
+    summary="US-04-02 — Détail dossier client",
+    responses={
+        **_R401,
+        **openapi_http_error(
+            status.HTTP_404_NOT_FOUND,
+            "Dossier introuvable ou n’appartenant pas au client",
+            "Dossier introuvable",
+        ),
+    },
+)
 def get_my_dossier(
     dossier_id: int,
     db: DbSession,
@@ -121,7 +187,12 @@ def get_my_dossier(
 # ──────────────────────────────────────────────
 
 
-@router.get("", response_model=DossierListOut, summary="US-06-01 — Liste back-office")
+@router.get(
+    "",
+    response_model=DossierListOut,
+    summary="US-06-01 — Liste back-office",
+    responses={**_R403_BO},
+)
 def list_dossiers_bo(
     db: DbSession,
     _: GestionnaireUser,
@@ -140,7 +211,19 @@ def list_dossiers_bo(
     return DossierListOut(total=total, items=cast(list[DossierOut], items))
 
 
-@router.get("/{dossier_id}", response_model=DossierOut, summary="US-06-03 — Détail dossier back-office")
+@router.get(
+    "/{dossier_id}",
+    response_model=DossierOut,
+    summary="US-06-03 — Détail dossier back-office",
+    responses={
+        **_R403_BO,
+        **openapi_http_error(
+            status.HTTP_404_NOT_FOUND,
+            "Aucun dossier pour cet identifiant",
+            "Dossier introuvable",
+        ),
+    },
+)
 def get_dossier_bo(
     dossier_id: int,
     db: DbSession,
@@ -148,11 +231,31 @@ def get_dossier_bo(
 ):
     d = db.query(Dossier).filter(Dossier.id == dossier_id).first()
     if not d:
-        raise HTTPException(status_code=404, detail="Dossier introuvable")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Dossier introuvable",
+        )
     return d
 
 
-@router.post("/{dossier_id}/prendre-en-charge", response_model=DossierOut, summary="US-06-02 — Prise en charge")
+@router.post(
+    "/{dossier_id}/prendre-en-charge",
+    response_model=DossierOut,
+    summary="US-06-02 — Prise en charge",
+    responses={
+        **_R403_BO,
+        **openapi_http_error(
+            status.HTTP_404_NOT_FOUND,
+            "Aucun dossier pour cet identifiant",
+            "Dossier introuvable",
+        ),
+        **openapi_http_error(
+            status.HTTP_400_BAD_REQUEST,
+            "Le dossier doit être à l’état « déposé »",
+            "Le dossier doit être à l'état 'déposé'",
+        ),
+    },
+)
 def take_charge(
     dossier_id: int,
     db: DbSession,
@@ -160,9 +263,15 @@ def take_charge(
 ):
     d = db.query(Dossier).filter(Dossier.id == dossier_id).first()
     if not d:
-        raise HTTPException(status_code=404, detail="Dossier introuvable")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Dossier introuvable",
+        )
     if d.status != DossierStatusEnum.depose:
-        raise HTTPException(status_code=400, detail="Le dossier doit être à l'état 'déposé'")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Le dossier doit être à l'état 'déposé'",
+        )
 
     ancien = d.status.value
     d.status = DossierStatusEnum.en_instruction
@@ -173,7 +282,24 @@ def take_charge(
     return d
 
 
-@router.post("/{dossier_id}/valider", response_model=DossierOut, summary="US-06-04 — Valider un dossier")
+@router.post(
+    "/{dossier_id}/valider",
+    response_model=DossierOut,
+    summary="US-06-04 — Valider un dossier",
+    responses={
+        **_R403_BO,
+        **openapi_http_error(
+            status.HTTP_404_NOT_FOUND,
+            "Aucun dossier pour cet identifiant",
+            "Dossier introuvable",
+        ),
+        **openapi_http_error(
+            status.HTTP_400_BAD_REQUEST,
+            "Le dossier doit être en instruction",
+            "Le dossier doit être en instruction",
+        ),
+    },
+)
 def validate_dossier(
     dossier_id: int,
     db: DbSession,
@@ -181,9 +307,15 @@ def validate_dossier(
 ):
     d = db.query(Dossier).filter(Dossier.id == dossier_id).first()
     if not d:
-        raise HTTPException(status_code=404, detail="Dossier introuvable")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Dossier introuvable",
+        )
     if d.status != DossierStatusEnum.en_instruction:
-        raise HTTPException(status_code=400, detail="Le dossier doit être en instruction")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Le dossier doit être en instruction",
+        )
 
     ancien = d.status.value
     d.status = DossierStatusEnum.valide
@@ -194,7 +326,29 @@ def validate_dossier(
     return d
 
 
-@router.post("/{dossier_id}/rejeter", response_model=DossierOut, summary="US-06-05 — Rejeter un dossier")
+@router.post(
+    "/{dossier_id}/rejeter",
+    response_model=DossierOut,
+    summary="US-06-05 — Rejeter un dossier",
+    responses={
+        **_R403_BO,
+        **openapi_http_error(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            "Motif de rejet trop court",
+            "Le motif doit comporter au moins 20 caractères",
+        ),
+        **openapi_http_error(
+            status.HTTP_404_NOT_FOUND,
+            "Aucun dossier pour cet identifiant",
+            "Dossier introuvable",
+        ),
+        **openapi_http_error(
+            status.HTTP_400_BAD_REQUEST,
+            "Statut du dossier incompatible avec un rejet",
+            "Statut incompatible avec un rejet",
+        ),
+    },
+)
 def reject_dossier(
     dossier_id: int,
     payload: DossierRejectIn,
@@ -202,13 +356,22 @@ def reject_dossier(
     current_user: GestionnaireUser,
 ):
     if len(payload.motif.strip()) < 20:
-        raise HTTPException(status_code=422, detail="Le motif doit comporter au moins 20 caractères")
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Le motif doit comporter au moins 20 caractères",
+        )
 
     d = db.query(Dossier).filter(Dossier.id == dossier_id).first()
     if not d:
-        raise HTTPException(status_code=404, detail="Dossier introuvable")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Dossier introuvable",
+        )
     if d.status not in (DossierStatusEnum.depose, DossierStatusEnum.en_instruction):
-        raise HTTPException(status_code=400, detail="Statut incompatible avec un rejet")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Statut incompatible avec un rejet",
+        )
 
     ancien = d.status.value
     d.status = DossierStatusEnum.rejete
@@ -235,5 +398,8 @@ def _get_own_dossier(db: Session, dossier_id: int, user: User) -> Dossier:
         .first()
     )
     if not d:
-        raise HTTPException(status_code=404, detail="Dossier introuvable")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Dossier introuvable",
+        )
     return d

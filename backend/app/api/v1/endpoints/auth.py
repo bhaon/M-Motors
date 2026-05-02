@@ -1,11 +1,18 @@
 from fastapi import APIRouter, HTTPException, status
 
+from app.api.v1.openapi_responses import openapi_http_error
 from app.core.deps import CurrentUser, DbSession
 from app.core.security import create_access_token, hash_password, verify_password
 from app.models.user import User, RoleEnum
 from app.schemas.user import LoginIn, TokenOut, UserCreate, UserOut, UserUpdate
 
 router = APIRouter(prefix="/auth", tags=["Authentification"])
+
+_R401 = openapi_http_error(
+    status.HTTP_401_UNAUTHORIZED,
+    "Authentification requise ou token invalide / expiré",
+    "Token invalide",
+)
 
 
 @router.post(
@@ -95,12 +102,22 @@ def login(payload: LoginIn, db: DbSession):
     return TokenOut(access_token=token, user=UserOut.model_validate(user))
 
 
-@router.get("/me", response_model=UserOut, summary="US-02-04 — Profil courant")
+@router.get(
+    "/me",
+    response_model=UserOut,
+    summary="US-02-04 — Profil courant",
+    responses={**_R401},
+)
 def get_me(current_user: CurrentUser):
     return current_user
 
 
-@router.patch("/me", response_model=UserOut, summary="US-02-04 — Modifier le profil")
+@router.patch(
+    "/me",
+    response_model=UserOut,
+    summary="US-02-04 — Modifier le profil",
+    responses={**_R401},
+)
 def update_me(
     payload: UserUpdate,
     db: DbSession,
@@ -113,7 +130,12 @@ def update_me(
     return current_user
 
 
-@router.delete("/me", status_code=204, summary="US-11-05 — Droit à l'effacement RGPD")
+@router.delete(
+    "/me",
+    status_code=204,
+    summary="US-11-05 — Droit à l'effacement RGPD",
+    responses={**_R401},
+)
 def delete_me(
     db: DbSession,
     current_user: CurrentUser,

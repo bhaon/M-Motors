@@ -6,7 +6,8 @@
 # Pile complète avec HTTPS (nginx → Next.js + API & docs sur /api/*) :
 #   docker compose -f docker-compose.yml -f docker-compose.build.yml up --build -d
 #   → https://localhost:8443 (app), https://localhost:8443/api/docs (OpenAPI)
-#   Certificat auto-signé (volume nginx_ssl_data) ; SSL_CERT_CN pour le CN OpenSSL.
+#   Certificat auto-signé (volume nginx_ssl_data) ; SSL_CERT_CN = hostname ou IP publique (SAN).
+#   Accès distant : ouvrir NGINX_HTTPS_PORT / NGINX_HTTP_PORT au pare-feu ; URL https://<IP>:8443
 #
 # Déploiement (images GHCR déjà buildées) — ne pas utiliser docker-compose.build.yml :
 #   IMAGE_TAG=sha-abc123 docker compose -f docker-compose.yml -f docker-compose.staging.yml pull
