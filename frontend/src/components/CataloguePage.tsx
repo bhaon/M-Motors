@@ -14,7 +14,9 @@ interface CataloguePageProps {
   vehicles: Vehicle[];
 }
 
-export default function CataloguePage({ vehicles }: Readonly<CataloguePageProps>) {
+export default function CataloguePage({
+  vehicles,
+}: Readonly<CataloguePageProps>) {
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const { filters, filtered, marques, modeles, setType, setField, reset } =
     useFilters(vehicles);

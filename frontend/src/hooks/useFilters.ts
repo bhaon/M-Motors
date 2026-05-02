@@ -28,9 +28,9 @@ export function useFilters(sourceVehicles: Vehicle[] = VEHICLES) {
     () =>
       [
         ...new Set(
-          sourceVehicles.filter(
-            (v) => !filters.marque || v.make === filters.marque,
-          ).map((v) => v.model),
+          sourceVehicles
+            .filter((v) => !filters.marque || v.make === filters.marque)
+            .map((v) => v.model),
         ),
       ].sort((a, b) => a.localeCompare(b)),
 
