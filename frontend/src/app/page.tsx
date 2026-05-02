@@ -1,7 +1,7 @@
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
 import CataloguePage from "@/components/CataloguePage";
-import { fetchVehicles } from "../lib/fetchVehicles";
+import { fetchVehicles } from "./fetchVehicles";
 
 export default async function Home() {
   const vehicles = await fetchVehicles();

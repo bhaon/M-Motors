@@ -1,0 +1,59 @@
+import { fetchVehicles } from "./fetchVehicles";
+import { VEHICLES } from "@/data/vehicles";
+
+describe("fetchVehicles", () => {
+  const original = process.env.NEXT_PUBLIC_API_URL;
+
+  afterEach(() => {
+    process.env.NEXT_PUBLIC_API_URL = original;
+    jest.restoreAllMocks();
+  });
+
+  it("retourne les données statiques si aucune URL d'API", async () => {
+    delete process.env.NEXT_PUBLIC_API_URL;
+    await expect(fetchVehicles()).resolves.toEqual(VEHICLES);
+  });
+
+  it("retourne les items API si la réponse est valide", async () => {
+    process.env.NEXT_PUBLIC_API_URL = "http://api.test";
+    const apiVehicle = { ...VEHICLES[0], id: 999 };
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ items: [apiVehicle] }),
+    });
+
+    await expect(fetchVehicles()).resolves.toEqual([apiVehicle]);
+    expect(global.fetch).toHaveBeenCalledWith(
+      "http://api.test/api/v1/vehicules",
+      { cache: "no-store" },
+    );
+  });
+
+  it("retourne VEHICLES si la réponse HTTP est en erreur", async () => {
+    process.env.NEXT_PUBLIC_API_URL = "http://api.test";
+    global.fetch = jest.fn().mockResolvedValue({ ok: false });
+
+    await expect(fetchVehicles()).resolves.toEqual(VEHICLES);
+  });
+
+  it("retourne VEHICLES si items est absent ou vide", async () => {
+    process.env.NEXT_PUBLIC_API_URL = "http://api.test";
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({}) })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ items: [] }),
+      });
+
+    await expect(fetchVehicles()).resolves.toEqual(VEHICLES);
+    await expect(fetchVehicles()).resolves.toEqual(VEHICLES);
+  });
+
+  it("retourne VEHICLES en cas d'exception réseau", async () => {
+    process.env.NEXT_PUBLIC_API_URL = "http://api.test";
+    global.fetch = jest.fn().mockRejectedValue(new Error("network"));
+
+    await expect(fetchVehicles()).resolves.toEqual(VEHICLES);
+  });
+});
