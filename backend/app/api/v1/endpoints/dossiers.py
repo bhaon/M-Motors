@@ -1,4 +1,4 @@
-import random
+import secrets
 import string
 from datetime import datetime, timezone
 from typing import cast
@@ -15,8 +15,9 @@ router = APIRouter(prefix="/dossiers", tags=["Dossiers"])
 
 
 def _generate_reference() -> str:
+    """Construit une référence unique DOS-AAAA-NNNNN (suffixe via PRNG cryptographique)."""
     year = datetime.now().year
-    suffix = "".join(random.choices(string.digits, k=5))
+    suffix = "".join(secrets.choice(string.digits) for _ in range(5))
     return f"DOS-{year}-{suffix}"
 
 

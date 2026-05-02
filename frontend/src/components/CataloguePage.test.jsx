@@ -44,4 +44,26 @@ describe("CataloguePage", () => {
       screen.queryByRole("button", { name: "Fermer" }),
     ).not.toBeInTheDocument();
   });
+
+  it("déclenche le toast pour un dossier achat (véhicule sans LLD)", () => {
+    const v = VEHICLES.find((x) => !x.lld);
+    expect(v).toBeDefined();
+    render(<CataloguePage vehicles={[v]} />);
+
+    fireEvent.click(document.querySelector(".vehicle-card"));
+    fireEvent.click(screen.getByText("Déposer un dossier Achat"));
+
+    expect(screen.getByText(/Dossier ACHAT initié/i)).toBeInTheDocument();
+  });
+
+  it("réinitialise les filtres depuis la ligne de chips", () => {
+    render(<CataloguePage vehicles={VEHICLES} />);
+    fireEvent.change(screen.getAllByRole("combobox")[0], {
+      target: { value: "Peugeot" },
+    });
+    fireEvent.click(screen.getByText("Réinitialiser les filtres"));
+    expect(
+      screen.getByText(`${VEHICLES.length} véhicules`),
+    ).toBeInTheDocument();
+  });
 });

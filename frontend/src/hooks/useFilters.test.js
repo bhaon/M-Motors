@@ -83,4 +83,45 @@ describe("useFilters", () => {
       true,
     );
   });
+
+  it("filtre par modèle lorsque la marque est fixée", () => {
+    const { result } = renderHook(() => useFilters());
+
+    act(() => {
+      result.current.setField("marque", "Peugeot");
+      result.current.setField("modele", "308 SW");
+    });
+
+    expect(result.current.filtered.length).toBeGreaterThan(0);
+    expect(result.current.filtered.every((v) => v.model === "308 SW")).toBe(
+      true,
+    );
+  });
+
+  it("exclut tout si le modèle ne correspond à aucun véhicule", () => {
+    const { result } = renderHook(() => useFilters());
+
+    act(() => {
+      result.current.setField("marque", "Peugeot");
+      result.current.setField("modele", "ModèleInexistant");
+    });
+
+    expect(result.current.filtered).toEqual([]);
+  });
+
+  it("accepte une liste source personnalisée", () => {
+    const subset = VEHICLES.filter((v) => v.make === "Toyota");
+    const { result } = renderHook(() => useFilters(subset));
+
+    expect(result.current.marques).toEqual(["Toyota"]);
+    expect(result.current.filtered.length).toBe(subset.length);
+  });
+
+  it("gère une liste source vide", () => {
+    const { result } = renderHook(() => useFilters([]));
+
+    expect(result.current.marques).toEqual([]);
+    expect(result.current.modeles).toEqual([]);
+    expect(result.current.filtered).toEqual([]);
+  });
 });
