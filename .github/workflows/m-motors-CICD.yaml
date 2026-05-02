@@ -43,6 +43,9 @@ env:
   REGISTRY: ghcr.io
   IMAGE_FRONTEND: ghcr.io/${{ github.repository_owner }}/mmotors-frontend
   IMAGE_BACKEND:  ghcr.io/${{ github.repository_owner }}/mmotors-backend
+  # SonarCloud: préférer des Variables de dépôt pour éviter les écarts push/manual.
+  SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY || 'mmotors' }}
+  SONAR_ORGANIZATION: ${{ vars.SONAR_ORGANIZATION || github.repository_owner }}
   NODE_VERSION:   "20"
   PYTHON_VERSION: "3.12"
 
@@ -402,14 +405,25 @@ jobs:
           path: backend/
         continue-on-error: true
 
+      - name: Vérifier la config SonarCloud
+        id: sonar-config
+        run: |
+          if [[ -z "${{ secrets.SONAR_TOKEN }}" ]]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "SONAR_TOKEN absent: analyse Sonar ignorée pour ce run."
+            exit 0
+          fi
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+
       - uses: SonarSource/sonarcloud-github-action@master
+        if: steps.sonar-config.outputs.enabled == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN:  ${{ secrets.SONAR_TOKEN }}
         with:
           args: >
-            -Dsonar.projectKey=mmotors
-            -Dsonar.organization=${{ github.repository_owner }}
+            -Dsonar.projectKey=${{ env.SONAR_PROJECT_KEY }}
+            -Dsonar.organization=${{ env.SONAR_ORGANIZATION }}
             -Dsonar.sources=frontend/src,backend/app
             -Dsonar.python.coverage.reportPaths=backend/coverage.xml
             -Dsonar.qualitygate.wait=true
