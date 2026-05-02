@@ -145,6 +145,7 @@ jobs:
 
       - name: Installer les dépendances
         run: npm ci --prefer-offline
+        working-directory: frontend
 
       - name: TypeScript strict (tsc --noEmit)
         run: npm run type-check
