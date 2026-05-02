@@ -11,19 +11,19 @@ name: M-Motors CI/CD
 
 # ── Déclencheurs ─────────────────────────────────────────────────────────────
 on:
-  # push:
-  #   branches:
-  #     - main        # déploiement production
-  #     - develop     # déploiement staging
-  #   paths-ignore:
-  #     - "**.md"
-  #     - ".gitignore"
-  #     - "docs/**"
-  # pull_request:
-  #   branches:
-  #     - main
-  #     - develop
-  #   types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - main        # déploiement production
+      - develop     # déploiement staging
+    paths-ignore:
+      - "**.md"
+      - ".gitignore"
+      - "docs/**"
+  pull_request:
+    branches:
+      - main
+      - develop
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
     inputs:
       environment:
