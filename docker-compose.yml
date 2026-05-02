@@ -1,1 +1,80 @@
-# M-Motors — docker-compose.yml (structure CI/CD)
+# M-Motors — composition Docker de base (CI/CD + local)
+#
+# Frontend (image construite en local) :
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up --build -d frontend
+#
+# Déploiement (images GHCR déjà buildées) — ne pas utiliser docker-compose.build.yml :
+#   IMAGE_TAG=sha-abc123 docker compose -f docker-compose.yml -f docker-compose.staging.yml pull
+#   IMAGE_TAG=sha-abc123 docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d --remove-orphans --no-build --wait
+#
+# Variables : voir .env.example à la racine (GHCR_OWNER requis sur les serveurs).
+
+name: mmotors
+
+services:
+  frontend:
+    image: mmotors-frontend:${IMAGE_TAG:-local}
+    container_name: mmotors-frontend
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+
+  backend:
+    image: ghcr.io/${GHCR_OWNER:-local}/mmotors-backend:${IMAGE_TAG:-local}
+    container_name: mmotors-backend
+    environment:
+      ENV: ${ENV:-production}
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      SECRET_KEY: ${SECRET_KEY}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: mmotors-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-mmotors}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mmotors}
+      POSTGRES_DB: ${POSTGRES_DB:-mmotors}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mmotors} -d ${POSTGRES_DB:-mmotors}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: mmotors-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

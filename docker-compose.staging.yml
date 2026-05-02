@@ -1,1 +1,14 @@
-# M-Motors — docker-compose.staging.yml (structure CI/CD)
+# M-Motors — override staging (images GHCR)
+# Prérequis : .env issu de .env.staging (GHCR_OWNER, secrets applicatifs…)
+#
+# Exemple (aligné sur m-motors-CICD.yaml) :
+#   IMAGE_TAG=sha-$(git rev-parse --short HEAD) \
+#     docker compose -f docker-compose.yml -f docker-compose.staging.yml pull
+#   IMAGE_TAG=sha-... docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d --remove-orphans --no-build --wait
+
+services:
+  frontend:
+    image: ghcr.io/${GHCR_OWNER}/mmotors-frontend:${IMAGE_TAG:-develop}
+
+  backend:
+    image: ghcr.io/${GHCR_OWNER}/mmotors-backend:${IMAGE_TAG:-develop}

@@ -1,0 +1,43 @@
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --navy:   #0D1B4B;
+  --navy2:  #1a2d6b;
+  --cyan:   #00B4D8;
+  --cyan2:  #0090b0;
+  --gold:   #F4A024;
+  --white:  #fff;
+  --off:    #F7F8FC;
+  --muted:  #6B7280;
+  --border: #E5E7EB;
+  --radius: 12px;
+  --shadow: 0 2px 16px rgba(13,27,75,.10);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--off);
+  color: var(--navy);
+  min-height: 100vh;
+}
+
+/* ── Scrollbar overlay (modal) ── */
+.modal-open { overflow: hidden; }
+
+/* ── Vehicle card hover image zoom ── */
+.vehicle-card:hover .card-img-inner {
+  transform: scale(1.04);
+}
+
+/* ── Overlay transition ── */
+.overlay-enter   { opacity: 0; }
+.overlay-visible { opacity: 1; transition: opacity 0.2s; }
+
+/* ── Toast slide ── */
+.toast-hidden { transform: translateY(80px); opacity: 0; }
+.toast-visible { transform: translateY(0); opacity: 1; transition: transform 0.3s, opacity 0.3s; }

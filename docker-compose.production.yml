@@ -1,1 +1,14 @@
-# M-Motors — docker-compose.production.yml (structure CI/CD)
+# M-Motors — override production (images GHCR)
+# Prérequis : .env issu de .env.production
+#
+# Exemple :
+#   IMAGE_TAG=sha-$(git rev-parse --short HEAD) \
+#     docker compose -f docker-compose.yml -f docker-compose.production.yml pull
+#   IMAGE_TAG=sha-... docker compose -f docker-compose.yml -f docker-compose.production.yml up -d --remove-orphans --no-build --wait
+
+services:
+  frontend:
+    image: ghcr.io/${GHCR_OWNER}/mmotors-frontend:${IMAGE_TAG:-latest}
+
+  backend:
+    image: ghcr.io/${GHCR_OWNER}/mmotors-backend:${IMAGE_TAG:-latest}
