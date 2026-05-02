@@ -7,7 +7,12 @@ describe("FiltersRow", () => {
     const onReset = jest.fn();
 
     render(
-      <FiltersRow activeType="all" count={2} onType={onType} onReset={onReset} />,
+      <FiltersRow
+        activeType="all"
+        count={2}
+        onType={onType}
+        onReset={onReset}
+      />,
     );
 
     expect(screen.getByText("2 véhicules")).toBeInTheDocument();
