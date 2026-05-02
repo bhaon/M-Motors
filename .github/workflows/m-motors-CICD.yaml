@@ -1,0 +1,760 @@
+# ============================================================================
+# M-Motors — GitHub Actions CI/CD Pipeline
+# ----------------------------------------------------------------------------
+# Stack    : Next.js (frontend) · FastAPI/Python (backend) · PostgreSQL · Redis
+# Registry : GHCR (GitHub Container Registry)
+# Deploy   : Docker Compose via SSH (serveur local / self-hosted runner)
+# Tests    : Pytest · Jest · Playwright · SonarQube (SAST)
+# ============================================================================
+
+name: M-Motors CI/CD
+
+# ── Déclencheurs ─────────────────────────────────────────────────────────────
+on:
+  # push:
+  #   branches:
+  #     - main        # déploiement production
+  #     - develop     # déploiement staging
+  #   paths-ignore:
+  #     - "**.md"
+  #     - ".gitignore"
+  #     - "docs/**"
+  # pull_request:
+  #   branches:
+  #     - main
+  #     - develop
+  #   types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environnement cible"
+        required: true
+        default: "staging"
+        type: choice
+        options: [staging, production]
+      skip_tests:
+        description: "Passer les tests (urgence uniquement)"
+        required: false
+        default: false
+        type: boolean
+
+# ── Variables globales ────────────────────────────────────────────────────────
+env:
+  REGISTRY: ghcr.io
+  IMAGE_FRONTEND: ghcr.io/${{ github.repository_owner }}/mmotors-frontend
+  IMAGE_BACKEND:  ghcr.io/${{ github.repository_owner }}/mmotors-backend
+  NODE_VERSION:   "20"
+  PYTHON_VERSION: "3.12"
+
+# ── Annulation des runs redondants ───────────────────────────────────────────
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# =============================================================================
+# JOBS
+# =============================================================================
+jobs:
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # JOB 1 — DÉTECTION DES CHANGEMENTS
+  # ──────────────────────────────────────────────────────────────────────────
+  changes:
+    name: "🔍 Détection des changements"
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      backend:  ${{ steps.filter.outputs.backend }}
+      compose:  ${{ steps.filter.outputs.compose }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            frontend:
+              - 'frontend/**'
+            backend:
+              - 'backend/**'
+              - 'requirements*.txt'
+              - 'alembic/**'
+            compose:
+              - 'docker-compose*.yml'
+              - '.env.example'
+              - '.github/workflows/**'
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # JOB 2 — LINT FRONTEND (ESLint + TypeScript + Prettier)
+  # ──────────────────────────────────────────────────────────────────────────
+  lint-frontend:
+    name: "🧹 Lint Frontend"
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch'
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Installer les dépendances
+        run: npm ci --prefer-offline
+
+      - name: TypeScript strict (tsc --noEmit)
+        run: npm run type-check
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Prettier — vérification formatage
+        run: npm run format:check
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # JOB 3 — LINT BACKEND (Ruff + Mypy + Bandit)
+  # ──────────────────────────────────────────────────────────────────────────
+  lint-backend:
+    name: "🧹 Lint Backend"
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.backend == 'true' || github.event_name == 'workflow_dispatch'
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+          cache-dependency-path: backend/requirements*.txt
+
+      - name: Installer les dépendances
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Ruff — lint + format check
+        run: |
+          ruff check . --output-format=github
+          ruff format --check .
+
+      - name: Mypy — vérification de types
+        run: mypy app/ --ignore-missing-imports --strict
+
+      - name: Bandit — analyse sécurité SAST
+        run: bandit -r app/ -f json -o bandit-report.json
+        continue-on-error: true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bandit-report
+          path: backend/bandit-report.json
+          retention-days: 14
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # JOB 4 — TESTS UNITAIRES BACKEND (Pytest — SQLite in-memory)
+  # ──────────────────────────────────────────────────────────────────────────
+  test-backend-unit:
+    name: "🧪 Tests unitaires Backend"
+    runs-on: ubuntu-latest
+    needs: lint-backend
+    if: ${{ !inputs.skip_tests }}
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+          cache-dependency-path: backend/requirements*.txt
+
+      - name: Installer les dépendances
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Pytest — tests unitaires (couverture >= 80%)
+        run: |
+          pytest tests/unit/ \
+            --cov=app \
+            --cov-report=xml:coverage.xml \
+            --cov-report=term-missing \
+            --cov-fail-under=80 \
+            --junitxml=pytest-unit-results.xml \
+            -v
+        env:
+          ENV: test
+          SECRET_KEY: ci-test-secret
+          DATABASE_URL: sqlite+aiosqlite:///./test.db
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pytest-unit-results
+          path: |
+            backend/pytest-unit-results.xml
+            backend/coverage.xml
+          retention-days: 14
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # JOB 5 — TESTS D'INTÉGRATION BACKEND (Pytest + PostgreSQL + Redis)
+  # ──────────────────────────────────────────────────────────────────────────
+  test-backend-integration:
+    name: "🔗 Tests intégration Backend"
+    runs-on: ubuntu-latest
+    needs: lint-backend
+    if: ${{ !inputs.skip_tests }}
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER:     mmotors
+          POSTGRES_PASSWORD: mmotors_test
+          POSTGRES_DB:       mmotors_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 3s
+          --health-retries 5
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+          cache-dependency-path: backend/requirements*.txt
+
+      - name: Installer les dépendances
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Migrations Alembic
+        run: alembic upgrade head
+        env:
+          DATABASE_URL: postgresql+asyncpg://mmotors:mmotors_test@localhost:5432/mmotors_test
+
+      - name: Pytest — tests d'intégration
+        run: |
+          pytest tests/integration/ \
+            --junitxml=pytest-integration-results.xml \
+            -v --timeout=60
+        env:
+          ENV: test
+          SECRET_KEY: ci-test-secret
+          DATABASE_URL: postgresql+asyncpg://mmotors:mmotors_test@localhost:5432/mmotors_test
+          REDIS_URL: redis://localhost:6379/0
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pytest-integration-results
+          path: backend/pytest-integration-results.xml
+          retention-days: 14
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # JOB 6 — TESTS UNITAIRES FRONTEND (Jest)
+  # ──────────────────────────────────────────────────────────────────────────
+  test-frontend-unit:
+    name: "🧪 Tests unitaires Frontend"
+    runs-on: ubuntu-latest
+    needs: lint-frontend
+    if: ${{ !inputs.skip_tests }}
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Installer les dépendances
+        run: npm ci --prefer-offline
+
+      - name: Jest — tests unitaires + couverture
+        run: npm test -- --ci --coverage --coverageReporters=lcov,text
+        env:
+          CI: true
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # JOB 7 — BUILD FRONTEND (next build)
+  # ──────────────────────────────────────────────────────────────────────────
+  build-frontend:
+    name: "🏗️ Build Frontend (Next.js)"
+    runs-on: ubuntu-latest
+    needs: [lint-frontend, test-frontend-unit]
+    if: always() && !failure() && !cancelled()
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Installer les dépendances
+        run: npm ci --prefer-offline
+
+      - name: Next.js build (vérification de compilabilité)
+        run: npm run build
+        env:
+          NEXT_PUBLIC_APP_ENV: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+          NODE_ENV: production
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # JOB 8 — ANALYSE SONARQUBE (SAST)
+  # ──────────────────────────────────────────────────────────────────────────
+  sonarqube:
+    name: "🔐 Analyse SonarQube"
+    runs-on: ubuntu-latest
+    needs: [test-backend-unit, test-frontend-unit]
+    if: always() && !cancelled()
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # requis pour l'analyse d'historique SonarQube
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: pytest-unit-results
+          path: backend/
+        continue-on-error: true
+
+      - uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN:  ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.projectKey=mmotors
+            -Dsonar.organization=${{ github.repository_owner }}
+            -Dsonar.sources=frontend/src,backend/app
+            -Dsonar.python.coverage.reportPaths=backend/coverage.xml
+            -Dsonar.qualitygate.wait=true
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # JOB 9 — BUILD & PUSH IMAGES DOCKER vers GHCR
+  # ──────────────────────────────────────────────────────────────────────────
+  build-images:
+    name: "🐳 Build & Push Docker Images"
+    runs-on: ubuntu-latest
+    needs: [build-frontend, test-backend-integration, sonarqube]
+    if: |
+      always() && !failure() && !cancelled() &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' ||
+       github.event_name == 'workflow_dispatch')
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      short-sha: ${{ steps.vars.outputs.short-sha }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Calculer le SHA court
+        id: vars
+        run: echo "short-sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Login GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── Frontend ──────────────────────────────────────────────────────────
+      - name: Metadonnees image Frontend
+        id: meta-frontend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_FRONTEND }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=sha-,format=short
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build & Push — Frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file:    ./frontend/Dockerfile
+          push:    true
+          tags:    ${{ steps.meta-frontend.outputs.tags }}
+          labels:  ${{ steps.meta-frontend.outputs.labels }}
+          cache-from: type=gha
+          cache-to:   type=gha,mode=max
+
+      # ── Backend ───────────────────────────────────────────────────────────
+      - name: Metadonnees image Backend
+        id: meta-backend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_BACKEND }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=sha-,format=short
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build & Push — Backend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file:    ./backend/Dockerfile
+          push:    true
+          tags:    ${{ steps.meta-backend.outputs.tags }}
+          labels:  ${{ steps.meta-backend.outputs.labels }}
+          cache-from: type=gha
+          cache-to:   type=gha,mode=max
+
+      # ── Scan Trivy ────────────────────────────────────────────────────────
+      - name: Trivy — scan image Frontend
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE_FRONTEND }}:sha-${{ steps.vars.outputs.short-sha }}
+          format:    sarif
+          output:    trivy-frontend.sarif
+          severity:  CRITICAL,HIGH
+          exit-code: "1"
+
+      - name: Trivy — scan image Backend
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE_BACKEND }}:sha-${{ steps.vars.outputs.short-sha }}
+          format:    sarif
+          output:    trivy-backend.sarif
+          severity:  CRITICAL,HIGH
+          exit-code: "1"
+
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: "."
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # JOB 10 — DEPLOIEMENT STAGING (branche develop)
+  # SSH vers serveur local — docker compose up
+  # ──────────────────────────────────────────────────────────────────────────
+  deploy-staging:
+    name: "🚀 Deploy → Staging (Docker Compose)"
+    runs-on: ubuntu-latest
+    needs: build-images
+    if: github.ref == 'refs/heads/develop'
+    environment:
+      name: staging
+      url: http://${{ secrets.STAGING_HOST }}:3000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Calculer le SHA court
+        id: vars
+        run: echo "short-sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Deploy via SSH — staging
+        uses: appleboy/ssh-action@v1
+        with:
+          host:     ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_SSH_USER }}
+          key:      ${{ secrets.STAGING_SSH_KEY }}
+          port:     ${{ secrets.STAGING_SSH_PORT || 22 }}
+          script: |
+            set -e
+            cd ${{ secrets.STAGING_DEPLOY_PATH || '/opt/mmotors/staging' }}
+
+            # Mise a jour du code
+            git fetch origin develop
+            git reset --hard origin/develop
+
+            # Variables d'environnement staging
+            cp .env.staging .env
+
+            # Login GHCR depuis le serveur
+            echo "${{ secrets.GHCR_TOKEN }}" | \
+              docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            # Pull des nouvelles images
+            IMAGE_TAG=sha-${{ steps.vars.outputs.short-sha }} \
+              docker compose -f docker-compose.yml \
+                             -f docker-compose.staging.yml \
+              pull
+
+            # Migrations Alembic avant redemarrage
+            IMAGE_TAG=sha-${{ steps.vars.outputs.short-sha }} \
+              docker compose -f docker-compose.yml \
+                             -f docker-compose.staging.yml \
+              run --rm backend alembic upgrade head
+
+            # Redemarrage (--wait attend le healthcheck)
+            IMAGE_TAG=sha-${{ steps.vars.outputs.short-sha }} \
+              docker compose -f docker-compose.yml \
+                             -f docker-compose.staging.yml \
+              up -d --remove-orphans --wait
+
+            # Nettoyage images orphelines
+            docker image prune -f
+
+            echo "Staging deploye — sha-${{ steps.vars.outputs.short-sha }}"
+
+      - name: Smoke test staging
+        run: |
+          sleep 10
+          curl -sf --retry 5 --retry-delay 5 \
+            http://${{ secrets.STAGING_HOST }}:3000/api/health || exit 1
+          echo "Health check staging OK"
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # JOB 11 — TESTS E2E PLAYWRIGHT (sur staging)
+  # ──────────────────────────────────────────────────────────────────────────
+  test-e2e:
+    name: "🎭 Tests E2E Playwright"
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    if: ${{ !inputs.skip_tests }}
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Installer les dependances
+        run: npm ci --prefer-offline
+
+      - name: Installer les navigateurs Playwright
+        run: npx playwright install --with-deps chromium firefox
+
+      - name: Playwright — tests E2E
+        run: npx playwright test --reporter=html,github
+        env:
+          PLAYWRIGHT_BASE_URL: http://${{ secrets.STAGING_HOST }}:3000
+          CI: true
+        timeout-minutes: 20
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 14
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # JOB 12 — DEPLOIEMENT PRODUCTION (branche main)
+  # Approbation manuelle via GitHub Environment protection rules
+  # ──────────────────────────────────────────────────────────────────────────
+  deploy-production:
+    name: "🏁 Deploy → Production (Docker Compose) — Approbation requise"
+    runs-on: ubuntu-latest
+    needs: [build-images, test-e2e]
+    if: |
+      always() && !failure() && !cancelled() &&
+      (github.ref == 'refs/heads/main' ||
+       (github.event_name == 'workflow_dispatch' && inputs.environment == 'production'))
+    environment:
+      name: production
+      url: http://${{ secrets.PROD_HOST }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Calculer le SHA court
+        id: vars
+        run: echo "short-sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Dump PostgreSQL (sauvegarde pre-deploy)
+        uses: appleboy/ssh-action@v1
+        with:
+          host:     ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_SSH_USER }}
+          key:      ${{ secrets.PROD_SSH_KEY }}
+          port:     ${{ secrets.PROD_SSH_PORT || 22 }}
+          script: |
+            set -e
+            DEPLOY_PATH=${{ secrets.PROD_DEPLOY_PATH || '/opt/mmotors/production' }}
+            BACKUP_DIR="$DEPLOY_PATH/backups"
+            mkdir -p "$BACKUP_DIR"
+
+            docker compose -f "$DEPLOY_PATH/docker-compose.yml" \
+              exec -T postgres \
+              pg_dump -U mmotors mmotors \
+              > "$BACKUP_DIR/mmotors_$(date +%Y%m%d_%H%M%S).sql"
+
+            # Garder uniquement les 10 derniers dumps
+            ls -t "$BACKUP_DIR"/*.sql | tail -n +11 | xargs -r rm
+
+            echo "Dump PostgreSQL OK"
+
+      - name: Deploy via SSH — production
+        uses: appleboy/ssh-action@v1
+        with:
+          host:     ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_SSH_USER }}
+          key:      ${{ secrets.PROD_SSH_KEY }}
+          port:     ${{ secrets.PROD_SSH_PORT || 22 }}
+          script: |
+            set -e
+            cd ${{ secrets.PROD_DEPLOY_PATH || '/opt/mmotors/production' }}
+
+            # Sauvegarder la ref Git actuelle pour rollback
+            git rev-parse HEAD > .last-stable-sha
+
+            # Mise a jour du code
+            git fetch origin main
+            git reset --hard origin/main
+
+            cp .env.production .env
+
+            # Login GHCR
+            echo "${{ secrets.GHCR_TOKEN }}" | \
+              docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            # Pull des nouvelles images
+            IMAGE_TAG=sha-${{ steps.vars.outputs.short-sha }} \
+              docker compose -f docker-compose.yml \
+                             -f docker-compose.production.yml \
+              pull
+
+            # Migrations Alembic
+            IMAGE_TAG=sha-${{ steps.vars.outputs.short-sha }} \
+              docker compose -f docker-compose.yml \
+                             -f docker-compose.production.yml \
+              run --rm backend alembic upgrade head
+
+            # Demarrage
+            IMAGE_TAG=sha-${{ steps.vars.outputs.short-sha }} \
+              docker compose -f docker-compose.yml \
+                             -f docker-compose.production.yml \
+              up -d --remove-orphans --wait
+
+            docker image prune -f
+
+            echo "Production deployee — sha-${{ steps.vars.outputs.short-sha }}"
+
+      - name: Smoke test production
+        run: |
+          sleep 10
+          curl -sf --retry 5 --retry-delay 5 \
+            http://${{ secrets.PROD_HOST }}/api/health || exit 1
+          curl -sf --retry 3 --retry-delay 3 \
+            http://${{ secrets.PROD_HOST }} || exit 1
+          echo "Health check production OK"
+
+      - name: Rollback automatique en cas d'echec
+        if: failure()
+        uses: appleboy/ssh-action@v1
+        with:
+          host:     ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_SSH_USER }}
+          key:      ${{ secrets.PROD_SSH_KEY }}
+          port:     ${{ secrets.PROD_SSH_PORT || 22 }}
+          script: |
+            cd ${{ secrets.PROD_DEPLOY_PATH || '/opt/mmotors/production' }}
+            echo "Echec — rollback vers $(cat .last-stable-sha)"
+
+            LAST_SHA=$(cat .last-stable-sha)
+            git checkout "$LAST_SHA"
+
+            docker compose -f docker-compose.yml \
+                           -f docker-compose.production.yml \
+              up -d --remove-orphans --wait
+
+            echo "Rollback effectue vers $LAST_SHA"
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # JOB 13 — NOTIFICATION SLACK
+  # ──────────────────────────────────────────────────────────────────────────
+  notify:
+    name: "📣 Notification Slack"
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    if: always()
+
+    steps:
+      - name: Determiner le statut global
+        id: status
+        run: |
+          if [[ "${{ needs.deploy-production.result }}" == "success" ]]; then
+            echo "emoji=✅"          >> $GITHUB_OUTPUT
+            echo "env=Production"   >> $GITHUB_OUTPUT
+            echo "color=good"       >> $GITHUB_OUTPUT
+          elif [[ "${{ needs.deploy-staging.result }}" == "success" ]]; then
+            echo "emoji=🚀"         >> $GITHUB_OUTPUT
+            echo "env=Staging"      >> $GITHUB_OUTPUT
+            echo "color=good"       >> $GITHUB_OUTPUT
+          else
+            echo "emoji=🔴"         >> $GITHUB_OUTPUT
+            echo "env=Echec"        >> $GITHUB_OUTPUT
+            echo "color=danger"     >> $GITHUB_OUTPUT
+          fi
+
+      - name: Notification Slack
+        uses: slackapi/slack-github-action@v2
+        if: always()
+        with:
+          webhook:      ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "${{ steps.status.outputs.emoji }} *M-Motors* — ${{ steps.status.outputs.env }}",
+              "attachments": [{
+                "color": "${{ steps.status.outputs.color }}",
+                "fields": [
+                  {"title": "Branche", "value": "${{ github.ref_name }}",  "short": true},
+                  {"title": "Auteur",  "value": "${{ github.actor }}",     "short": true},
+                  {"title": "Commit",  "value": "${{ github.sha }}",       "short": true},
+                  {"title": "Logs",    "value": "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Voir le run>", "short": true}
+                ]
+              }]
+            }
