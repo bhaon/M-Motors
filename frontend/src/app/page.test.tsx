@@ -11,6 +11,7 @@ const mockedFetch = jest.mocked(fetchVehicles);
 
 describe("Home (page.tsx)", () => {
   beforeEach(() => {
+    mockedFetch.mockClear();
     mockedFetch.mockResolvedValue(VEHICLES.slice(0, 2));
   });
 

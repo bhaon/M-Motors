@@ -66,4 +66,9 @@ describe("CataloguePage", () => {
       screen.getByText(`${VEHICLES.length} véhicules`),
     ).toBeInTheDocument();
   });
+
+  it("exécute le callback Rechercher de la barre de recherche", () => {
+    render(<CataloguePage vehicles={VEHICLES} />);
+    fireEvent.click(screen.getByRole("button", { name: /Rechercher/i }));
+  });
 });

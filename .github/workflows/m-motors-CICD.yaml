@@ -356,7 +356,7 @@ jobs:
         run: npm ci --prefer-offline
 
       - name: Jest — tests unitaires + couverture
-        run: npm test -- --ci --coverage --coverageReporters=lcov --coverageReporters=text
+        run: npm run test:ci
         env:
           CI: true
 

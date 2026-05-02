@@ -1,3 +1,7 @@
+/**
+ * Couverture : tout fichier sous collectCoverageFrom compte dans le % — un nouveau
+ * module sans test fait baisser le global. Aligner le CI : `npm run test:ci`.
+ */
 const nextJest = require("next/jest");
 
 const createJestConfig = nextJest({
