@@ -34,9 +34,10 @@ services:
     container_name: mmotors-backend
     environment:
       ENV: ${ENV:-production}
+      # À surcharger via .env : ne pas laisser les mots de passe par défaut en production
       DATABASE_URL: ${DATABASE_URL:-postgresql://mmotors:mmotors@postgres:5432/mmotors}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
-      SECRET_KEY: ${SECRET_KEY:-changez-moi}
+      SECRET_KEY: ${SECRET_KEY:-mmotors-local-dev-only-set-secret-in-dotenv-file-32}
       ALLOWED_ORIGINS: '["http://localhost:${FRONTEND_PORT:-3000}"]'
     ports:
       - "${BACKEND_PORT:-8000}:8000"
