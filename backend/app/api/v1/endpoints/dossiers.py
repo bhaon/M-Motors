@@ -26,6 +26,8 @@ _R403_BO = openapi_http_error(
     "Rôle requis : ['gestionnaire', 'superviseur', 'admin']",
 )
 
+_DETAIL_DOSSIER_INTROUVABLE = "Dossier introuvable"
+
 
 def _generate_reference() -> str:
     """Construit une référence unique DOS-AAAA-NNNNN (suffixe via PRNG cryptographique)."""
@@ -112,7 +114,7 @@ def create_dossier(
         **openapi_http_error(
             status.HTTP_404_NOT_FOUND,
             "Dossier introuvable ou n’appartenant pas au client",
-            "Dossier introuvable",
+            _DETAIL_DOSSIER_INTROUVABLE,
         ),
         **openapi_http_error(
             status.HTTP_400_BAD_REQUEST,
@@ -170,7 +172,7 @@ def list_my_dossiers(
         **openapi_http_error(
             status.HTTP_404_NOT_FOUND,
             "Dossier introuvable ou n’appartenant pas au client",
-            "Dossier introuvable",
+            _DETAIL_DOSSIER_INTROUVABLE,
         ),
     },
 )
@@ -220,7 +222,7 @@ def list_dossiers_bo(
         **openapi_http_error(
             status.HTTP_404_NOT_FOUND,
             "Aucun dossier pour cet identifiant",
-            "Dossier introuvable",
+            _DETAIL_DOSSIER_INTROUVABLE,
         ),
     },
 )
@@ -233,7 +235,7 @@ def get_dossier_bo(
     if not d:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Dossier introuvable",
+            detail=_DETAIL_DOSSIER_INTROUVABLE,
         )
     return d
 
@@ -247,7 +249,7 @@ def get_dossier_bo(
         **openapi_http_error(
             status.HTTP_404_NOT_FOUND,
             "Aucun dossier pour cet identifiant",
-            "Dossier introuvable",
+            _DETAIL_DOSSIER_INTROUVABLE,
         ),
         **openapi_http_error(
             status.HTTP_400_BAD_REQUEST,
@@ -265,7 +267,7 @@ def take_charge(
     if not d:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Dossier introuvable",
+            detail=_DETAIL_DOSSIER_INTROUVABLE,
         )
     if d.status != DossierStatusEnum.depose:
         raise HTTPException(
@@ -291,7 +293,7 @@ def take_charge(
         **openapi_http_error(
             status.HTTP_404_NOT_FOUND,
             "Aucun dossier pour cet identifiant",
-            "Dossier introuvable",
+            _DETAIL_DOSSIER_INTROUVABLE,
         ),
         **openapi_http_error(
             status.HTTP_400_BAD_REQUEST,
@@ -309,7 +311,7 @@ def validate_dossier(
     if not d:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Dossier introuvable",
+            detail=_DETAIL_DOSSIER_INTROUVABLE,
         )
     if d.status != DossierStatusEnum.en_instruction:
         raise HTTPException(
@@ -340,7 +342,7 @@ def validate_dossier(
         **openapi_http_error(
             status.HTTP_404_NOT_FOUND,
             "Aucun dossier pour cet identifiant",
-            "Dossier introuvable",
+            _DETAIL_DOSSIER_INTROUVABLE,
         ),
         **openapi_http_error(
             status.HTTP_400_BAD_REQUEST,
@@ -365,7 +367,7 @@ def reject_dossier(
     if not d:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Dossier introuvable",
+            detail=_DETAIL_DOSSIER_INTROUVABLE,
         )
     if d.status not in (DossierStatusEnum.depose, DossierStatusEnum.en_instruction):
         raise HTTPException(
@@ -383,10 +385,7 @@ def reject_dossier(
     return d
 
 
-# ──────────────────────────────────────────────
 # Helpers
-# ──────────────────────────────────────────────
-
 
 def _get_own_dossier(db: Session, dossier_id: int, user: User) -> Dossier:
     d = (
@@ -400,6 +399,6 @@ def _get_own_dossier(db: Session, dossier_id: int, user: User) -> Dossier:
     if not d:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Dossier introuvable",
+            detail=_DETAIL_DOSSIER_INTROUVABLE,
         )
     return d
