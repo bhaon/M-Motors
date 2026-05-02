@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import VehicleCard from "./VehicleCard";
+import VehicleCard from "@/components/VehicleCard";
 import { VEHICLES } from "@/data/vehicles";
 
 describe("VehicleCard", () => {

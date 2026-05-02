@@ -1,4 +1,4 @@
-import { fetchVehicles } from "./fetchVehicles";
+import { fetchVehicles } from "@/app/fetchVehicles";
 import { VEHICLES } from "@/data/vehicles";
 
 describe("fetchVehicles", () => {

@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import FiltersRow from "./FiltersRow";
+import FiltersRow from "@/components/FiltersRow";
 
 describe("FiltersRow", () => {
   it("affiche le compteur et déclenche les callbacks", () => {

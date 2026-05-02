@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import CataloguePage from "./CataloguePage";
+import CataloguePage from "@/components/CataloguePage";
 import { VEHICLES } from "@/data/vehicles";
 
 describe("CataloguePage", () => {

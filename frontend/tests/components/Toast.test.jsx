@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import Toast from "./Toast";
+import Toast from "@/components/Toast";
 
 describe("Toast", () => {
   it("affiche le message", () => {

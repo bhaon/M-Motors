@@ -1,5 +1,5 @@
 import { act, renderHook } from "@testing-library/react";
-import { useFilters } from "./useFilters";
+import { useFilters } from "@/hooks/useFilters";
 import { VEHICLES } from "@/data/vehicles";
 
 describe("useFilters", () => {

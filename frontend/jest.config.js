@@ -11,15 +11,21 @@ const createJestConfig = nextJest({
 const customJestConfig = {
   testEnvironment: "jest-environment-jsdom",
   setupFilesAfterEnv: ["<rootDir>/jest.setup.js"],
+  testMatch: ["<rootDir>/tests/**/*.test.{js,jsx,ts,tsx}"],
   testPathIgnorePatterns: ["<rootDir>/.next/", "<rootDir>/node_modules/"],
   modulePathIgnorePatterns: ["<rootDir>/.next/standalone/"],
+  /** Alias `@/` (tsconfig) pour `jest.mock` et le resolveur Jest, pas seulement le transform SWC. */
+  moduleNameMapper: {
+    "^@/(.*)$": "<rootDir>/src/$1",
+  },
   collectCoverageFrom: [
     "src/app/**/*.{ts,tsx}",
     "src/components/**/*.{ts,tsx}",
     "src/hooks/**/*.ts",
     "src/data/**/*.ts",
-    "!src/**/*.test.{ts,tsx,js,jsx}",
+    "src/types/**/*.ts",
     "!src/**/*.d.ts",
+    "!tests/**",
   ],
   coverageThreshold: {
     global: {

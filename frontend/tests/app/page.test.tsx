@@ -1,9 +1,9 @@
 import { render, screen } from "@testing-library/react";
 import { VEHICLES } from "@/data/vehicles";
-import { fetchVehicles } from "./fetchVehicles";
-import Home from "./page";
+import { fetchVehicles } from "@/app/fetchVehicles";
+import Home from "@/app/page";
 
-jest.mock("./fetchVehicles", () => ({
+jest.mock("@/app/fetchVehicles", () => ({
   fetchVehicles: jest.fn(),
 }));
 

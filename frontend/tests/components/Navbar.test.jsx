@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import Navbar from "./Navbar";
+import Navbar from "@/components/Navbar";
 
 describe("Navbar", () => {
   it("affiche la marque et le lien catalogue", () => {

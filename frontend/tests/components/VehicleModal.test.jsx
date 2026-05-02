@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import VehicleModal from "./VehicleModal";
+import VehicleModal from "@/components/VehicleModal";
 import { VEHICLES } from "@/data/vehicles";
 
 describe("VehicleModal", () => {

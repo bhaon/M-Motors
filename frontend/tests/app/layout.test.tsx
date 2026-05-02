@@ -2,7 +2,7 @@
  * @jest-environment node
  */
 import { renderToString } from "react-dom/server";
-import RootLayout, { metadata } from "./layout";
+import RootLayout, { metadata } from "@/app/layout";
 
 describe("RootLayout", () => {
   it("expose des métadonnées SEO", () => {
