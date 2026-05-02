@@ -387,6 +387,7 @@ def reject_dossier(
 
 # Helpers
 
+
 def _get_own_dossier(db: Session, dossier_id: int, user: User) -> Dossier:
     d = (
         db.query(Dossier)
