@@ -9,7 +9,9 @@ interface FiltersRowProps {
   onReset: () => void
 }
 
-export default function FiltersRow({ activeType, count, onType, onReset }: FiltersRowProps) {
+export default function FiltersRow(
+  { activeType, count, onType, onReset }: Readonly<FiltersRowProps>
+) {
   return (
     <div style={{
       display: 'flex',

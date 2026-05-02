@@ -17,7 +17,7 @@ export function useFilters() {
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS)
 
   const marques = useMemo(
-    () => [...new Set(VEHICLES.map(v => v.make))].sort(),
+    () => [...new Set(VEHICLES.map(v => v.make))].sort((a, b) => a.localeCompare(b)),
     []
   )
 
@@ -25,7 +25,8 @@ export function useFilters() {
     () =>
       [...new Set(
         VEHICLES.filter(v => !filters.marque || v.make === filters.marque).map(v => v.model)
-      )].sort(),
+      )].sort((a, b) => a.localeCompare(b)),
+ 
     [filters.marque]
   )
 
