@@ -9,7 +9,8 @@ const createJestConfig = nextJest({
 });
 
 const customJestConfig = {
-  testEnvironment: "jest-environment-jsdom",
+  /** happy-dom : pas de chaîne jsdom/whatwg-encoding (avertissements npm deprecated en CI). */
+  testEnvironment: "@happy-dom/jest-environment",
   setupFilesAfterEnv: ["<rootDir>/jest.setup.js"],
   testMatch: ["<rootDir>/tests/**/*.test.{js,jsx,ts,tsx}"],
   testPathIgnorePatterns: ["<rootDir>/.next/", "<rootDir>/node_modules/"],

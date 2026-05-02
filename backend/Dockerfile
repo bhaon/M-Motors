@@ -20,7 +20,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # App source
 COPY . .
 
-RUN adduser --system --uid 1001 fastapi
+# Groupe homonyme requis pour chown fastapi:fastapi dans docker-entrypoint.sh (TLS /certs).
+RUN groupadd --system --gid 1001 fastapi \
+ && useradd --system --uid 1001 --gid fastapi --no-create-home --shell /usr/sbin/nologin fastapi
 
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh

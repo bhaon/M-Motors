@@ -9,9 +9,13 @@ if [ ! -s "$CERT_DIR/server.pem" ] || [ ! -s "$CERT_DIR/server-key.pem" ]; then
     -keyout "$CERT_DIR/server-key.pem" -out "$CERT_DIR/server.pem" \
     -subj "/CN=backend/O=M-Motors" \
     -addext "subjectAltName=DNS:backend,DNS:mmotors-backend,DNS:localhost,IP:127.0.0.1"
+fi
+# Toujours appliquer droits + propriétaire : volume persistant peut contenir des PEM root-only
+# (génération précédente sans chown, ou recréation du conteneur) — sinon uvicorn (fastapi) : Permission denied.
+if [ -s "$CERT_DIR/server.pem" ] && [ -s "$CERT_DIR/server-key.pem" ]; then
   chmod 644 "$CERT_DIR/server.pem"
   chmod 640 "$CERT_DIR/server-key.pem"
-  chown fastapi:fastapi "$CERT_DIR/server.pem" "$CERT_DIR/server-key.pem" 2>/dev/null || true
+  chown fastapi:fastapi "$CERT_DIR/server.pem" "$CERT_DIR/server-key.pem"
 fi
 exec runuser -u fastapi -- /usr/local/bin/uvicorn app.main:application \
   --host 0.0.0.0 --port 8000 \
