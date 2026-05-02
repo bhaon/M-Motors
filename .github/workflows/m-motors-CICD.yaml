@@ -57,6 +57,25 @@ concurrency:
 jobs:
 
   # ──────────────────────────────────────────────────────────────────────────
+  # JOB 0 — TEST SSH CONNECTION
+  # ──────────────────────────────────────────────────────────────────────────
+  test-ssh-staging:
+    name: "🔒 Test SSH Connection Staging"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test connexion SSH staging
+        uses: appleboy/ssh-action@v1
+        with:
+          host:     ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_SSH_USER }}
+          key:      ${{ secrets.STAGING_SSH_KEY }}
+          script:   |
+            whoami
+            pwd
+            docker info | grep "Server Version"
+            ls /opt/mmotors/staging/
+            
+  # ──────────────────────────────────────────────────────────────────────────
   # JOB 1 — DÉTECTION DES CHANGEMENTS
   # ──────────────────────────────────────────────────────────────────────────
   changes:

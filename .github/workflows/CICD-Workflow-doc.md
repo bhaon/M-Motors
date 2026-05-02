@@ -1,6 +1,6 @@
 # M-Motors — Documentation du pipeline CI/CD
 
-> **Fichier :** `.github/workflows/ci-cd.yml`  
+> **Fichier :** `.github/workflows/m-motors-CICD.yaml`  
 > **Stack :** Next.js · FastAPI/Python · PostgreSQL · Redis  
 > **Registry :** GitHub Container Registry (GHCR)  
 > **Déploiement :** Docker Compose via SSH (serveur local)
