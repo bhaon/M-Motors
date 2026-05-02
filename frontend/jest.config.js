@@ -9,6 +9,13 @@ const customJestConfig = {
   setupFilesAfterEnv: ["<rootDir>/jest.setup.js"],
   testPathIgnorePatterns: ["<rootDir>/.next/", "<rootDir>/node_modules/"],
   modulePathIgnorePatterns: ["<rootDir>/.next/standalone/"],
+  coverageThreshold: {
+    global: {
+      functions: 80,
+      lines: 80,
+      statements: 80,
+    },
+  },
 };
 
 module.exports = createJestConfig(customJestConfig);
