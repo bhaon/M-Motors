@@ -1,6 +1,7 @@
 # ──────────────────────────────────────────────────────────────
-#  M-Motors — Next.js 14 (App Router)
+#  M-Motors — Next.js 15 (App Router)
 #  Multi-stage build : deps → builder → runner
+#  Node ≥ 20.19 requis par la chaîne ESLint 9 (eslint-visitor-keys).
 #
 #  Build  : docker build -t mmotors-nextjs .
 #  Run    : docker run -p 3000:3000 mmotors-nextjs
@@ -8,7 +9,7 @@
 # ──────────────────────────────────────────────────────────────
 
 # ── Stage 1 : dependencies ────────────────────────────────────
-FROM node:20-alpine AS deps
+FROM node:22-alpine AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
@@ -16,7 +17,7 @@ COPY package.json package-lock.json* ./
 RUN npm ci --prefer-offline
 
 # ── Stage 2 : builder ─────────────────────────────────────────
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
@@ -30,7 +31,7 @@ ENV NODE_ENV=production
 RUN npm run build
 
 # ── Stage 3 : runner (image finale ~160 Mo) ───────────────────
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production

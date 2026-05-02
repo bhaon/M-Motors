@@ -46,7 +46,7 @@ env:
   # SonarCloud: préférer des Variables de dépôt pour éviter les écarts push/manual.
   SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY || 'mmotors' }}
   SONAR_ORGANIZATION: ${{ vars.SONAR_ORGANIZATION || github.repository_owner }}
-  NODE_VERSION:   "20"
+  NODE_VERSION:   "22"
   PYTHON_VERSION: "3.12"
 
 # ── Annulation des runs redondants ───────────────────────────────────────────
