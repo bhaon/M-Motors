@@ -20,7 +20,9 @@ describe("fetchVehicles", () => {
     });
 
     await expect(fetchVehicles()).resolves.toEqual([apiVehicle]);
-    expect(global.fetch).toHaveBeenCalledWith("/api/v1/vehicules", { cache: "no-store" });
+    expect(global.fetch).toHaveBeenCalledWith("/api/v1/vehicules", {
+      cache: "no-store",
+    });
   });
 
   it("retourne les items API si NEXT_PUBLIC_API_URL est défini et la réponse est valide", async () => {
