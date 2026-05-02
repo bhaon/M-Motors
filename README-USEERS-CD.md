@@ -136,7 +136,7 @@ stat /opt/mmotors/.ssh/authorized_keys
 ```bash
 ssh -i ~/.ssh/mmotors_deploy \
     -o StrictHostKeyChecking=no \
-    deploy-mmotors@<STAGING_HOST> \
+    deploy-mmotors@<IP_OU_DNS_SERVEUR> \
     "echo 'Connexion OK'"
 ```
 
@@ -388,42 +388,33 @@ sudo -u deploy-mmotors docker info
 
 ## 9. Intégration avec GitHub Actions
 
-### Correspondance secrets GitHub ↔ configuration serveur
+### Variables et secrets GitHub ↔ configuration serveur
+
+**Variables de dépôt** (*Settings → Secrets and variables → Actions → Variables*) — URL publique de l’application (smoke tests, Playwright, lien de déploiement ; l’hôte SSH est dérivé automatiquement de cette URL) :
+
+| Variable | Valeur à renseigner |
+|---|---|
+| `STAGING_URL` | URL de base staging, ex. `http://192.168.1.50:3000` |
+| `PRODUCTION_URL` | URL de base production, ex. `https://www.exemple.com` |
+
+**Secrets** (*Settings → Secrets and variables → Actions → Secrets*) :
 
 | Secret GitHub | Valeur à renseigner |
 |---|---|
 | `STAGING_SSH_USER` | `deploy-mmotors` |
 | `STAGING_SSH_KEY` | Contenu de `~/.ssh/mmotors_deploy` (clé privée) |
-| `STAGING_HOST` | IP ou hostname du serveur staging |
 | `STAGING_SSH_PORT` | `22` (ou port personnalisé) |
 | `STAGING_DEPLOY_PATH` | `/opt/mmotors/staging` |
 | `PROD_SSH_USER` | `deploy-mmotors` |
 | `PROD_SSH_KEY` | Clé privée dédiée production (générer une paire séparée) |
-| `PROD_HOST` | IP ou hostname du serveur production |
+| `PROD_SSH_PORT` | `22` (ou port personnalisé) |
 | `PROD_DEPLOY_PATH` | `/opt/mmotors/production` |
 
 > **Bonne pratique :** Générer des paires de clés **distinctes** pour staging et production. En cas de compromission de la clé staging, la production reste protégée.
 
 ### Vérifier la connexion depuis le runner GitHub Actions
 
-Ajouter temporairement ce job de diagnostic dans le workflow :
-
-```yaml
-test-ssh:
-  runs-on: ubuntu-latest
-  steps:
-    - name: Test connexion SSH staging
-      uses: appleboy/ssh-action@v1
-      with:
-        host:     ${{ secrets.STAGING_HOST }}
-        username: ${{ secrets.STAGING_SSH_USER }}
-        key:      ${{ secrets.STAGING_SSH_KEY }}
-        script:   |
-          whoami
-          pwd
-          docker info | grep "Server Version"
-          ls /opt/mmotors/staging/
-```
+Le dépôt inclut le job `test-ssh-staging` : l’hôte SSH est calculé à partir de la variable `STAGING_URL` (voir `.github/workflows/m-motors-CICD.yaml`).
 
 ---
 

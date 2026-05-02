@@ -306,15 +306,23 @@ Le job détermine le statut global du pipeline et envoie une notification Slack 
 
 ---
 
-## 6. Secrets à configurer
+## 6. Secrets et variables à configurer
 
-À créer dans **GitHub → Settings → Secrets and variables → Actions** :
+Dans **GitHub → Settings → Secrets and variables → Actions** :
+
+### Variables de dépôt (onglet *Variables*)
+
+| Variable | Description | Exemple |
+|---|---|---|
+| `STAGING_URL` | URL publique de base de l’app staging (front + port si besoin) | `http://192.168.1.50:3000` |
+| `PRODUCTION_URL` | URL publique de base en production | `https://mmotors.example.com` |
+
+Ces URLs servent aux smoke tests, à Playwright et au lien « View deployment » sur l’environnement GitHub. L’hôte utilisé pour SSH est **dérivé automatiquement** de ces URLs dans le workflow (plus besoin de secrets `STAGING_HOST` / `PROD_HOST`).
 
 ### Secrets serveur Staging
 
 | Secret | Description | Exemple |
 |---|---|---|
-| `STAGING_HOST` | IP ou hostname du serveur | `192.168.1.50` |
 | `STAGING_SSH_USER` | Utilisateur SSH | `deploy` |
 | `STAGING_SSH_KEY` | Contenu de la clé privée SSH | `-----BEGIN OPENSSH...` |
 | `STAGING_SSH_PORT` | Port SSH (optionnel, défaut : 22) | `22` |
@@ -324,7 +332,6 @@ Le job détermine le statut global du pipeline et envoie une notification Slack 
 
 | Secret | Description |
 |---|---|
-| `PROD_HOST` | IP ou hostname du serveur de production |
 | `PROD_SSH_USER` | Utilisateur SSH |
 | `PROD_SSH_KEY` | Clé privée SSH |
 | `PROD_SSH_PORT` | Port SSH (optionnel) |
@@ -344,8 +351,8 @@ Le job détermine le statut global du pipeline et envoie une notification Slack 
 # Sur la machine locale
 ssh-keygen -t ed25519 -C "github-actions-mmotors" -f ~/.ssh/mmotors_deploy
 
-# Copier la clé publique sur le serveur cible
-ssh-copy-id -i ~/.ssh/mmotors_deploy.pub deploy@<STAGING_HOST>
+# Copier la clé publique sur le serveur cible (remplacer par l’hôte réel)
+ssh-copy-id -i ~/.ssh/mmotors_deploy.pub deploy@<VOTRE_HOST>
 
 # Copier le contenu de la clé privée dans le secret GitHub
 cat ~/.ssh/mmotors_deploy

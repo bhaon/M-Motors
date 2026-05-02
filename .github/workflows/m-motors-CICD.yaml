@@ -63,10 +63,29 @@ jobs:
     name: "🔒 Test SSH Connection Staging"
     runs-on: ubuntu-latest
     steps:
+      - name: Extraire l'hôte SSH depuis STAGING_URL
+        id: staging-ssh
+        env:
+          STAGING_URL: ${{ vars.STAGING_URL }}
+        run: |
+          python3 <<'PY'
+          import os, urllib.parse
+          u = os.environ.get("STAGING_URL", "").strip()
+          if not u:
+              raise SystemExit("Variable de dépôt STAGING_URL manquante ou vide")
+          if not u.startswith(("http://", "https://")):
+              u = "http://" + u
+          h = urllib.parse.urlparse(u).hostname
+          if not h:
+              raise SystemExit("Impossible d'extraire l'hôte depuis STAGING_URL")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+              f.write(f"host={h}\n")
+          PY
+
       - name: Test connexion SSH staging
         uses: appleboy/ssh-action@v1
         with:
-          host:     ${{ secrets.STAGING_HOST }}
+          host:     ${{ steps.staging-ssh.outputs.host }}
           username: ${{ secrets.STAGING_SSH_USER }}
           key:      ${{ secrets.STAGING_SSH_KEY }}
           script:   |
@@ -507,10 +526,30 @@ jobs:
     if: github.ref == 'refs/heads/develop'
     environment:
       name: staging
-      url: http://${{ secrets.STAGING_HOST }}:3000
+      # URL du déploiement (UI GitHub) : `secrets` est interdit ici — utiliser une variable de dépôt.
+      url: ${{ vars.STAGING_URL }}
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Extraire l'hôte SSH depuis STAGING_URL
+        id: staging-ssh
+        env:
+          STAGING_URL: ${{ vars.STAGING_URL }}
+        run: |
+          python3 <<'PY'
+          import os, urllib.parse
+          u = os.environ.get("STAGING_URL", "").strip()
+          if not u:
+              raise SystemExit("Variable de dépôt STAGING_URL manquante ou vide")
+          if not u.startswith(("http://", "https://")):
+              u = "http://" + u
+          h = urllib.parse.urlparse(u).hostname
+          if not h:
+              raise SystemExit("Impossible d'extraire l'hôte depuis STAGING_URL")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+              f.write(f"host={h}\n")
+          PY
 
       - name: Calculer le SHA court
         id: vars
@@ -519,7 +558,7 @@ jobs:
       - name: Deploy via SSH — staging
         uses: appleboy/ssh-action@v1
         with:
-          host:     ${{ secrets.STAGING_HOST }}
+          host:     ${{ steps.staging-ssh.outputs.host }}
           username: ${{ secrets.STAGING_SSH_USER }}
           key:      ${{ secrets.STAGING_SSH_KEY }}
           port:     ${{ secrets.STAGING_SSH_PORT || 22 }}
@@ -562,10 +601,12 @@ jobs:
             echo "Staging deploye — sha-${{ steps.vars.outputs.short-sha }}"
 
       - name: Smoke test staging
+        env:
+          STAGING_URL: ${{ vars.STAGING_URL }}
         run: |
           sleep 10
-          curl -sf --retry 5 --retry-delay 5 \
-            http://${{ secrets.STAGING_HOST }}:3000/api/health || exit 1
+          BASE="${STAGING_URL%/}"
+          curl -sf --retry 5 --retry-delay 5 "${BASE}/api/health" || exit 1
           echo "Health check staging OK"
 
   # ──────────────────────────────────────────────────────────────────────────
@@ -598,7 +639,7 @@ jobs:
       - name: Playwright — tests E2E
         run: npx playwright test --reporter=html,github
         env:
-          PLAYWRIGHT_BASE_URL: http://${{ secrets.STAGING_HOST }}:3000
+          PLAYWRIGHT_BASE_URL: ${{ vars.STAGING_URL }}
           CI: true
         timeout-minutes: 20
 
@@ -623,10 +664,29 @@ jobs:
        (github.event_name == 'workflow_dispatch' && inputs.environment == 'production'))
     environment:
       name: production
-      url: http://${{ secrets.PROD_HOST }}
+      url: ${{ vars.PRODUCTION_URL }}
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Extraire l'hôte SSH depuis PRODUCTION_URL
+        id: prod-ssh
+        env:
+          PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
+        run: |
+          python3 <<'PY'
+          import os, urllib.parse
+          u = os.environ.get("PRODUCTION_URL", "").strip()
+          if not u:
+              raise SystemExit("Variable de dépôt PRODUCTION_URL manquante ou vide")
+          if not u.startswith(("http://", "https://")):
+              u = "https://" + u
+          h = urllib.parse.urlparse(u).hostname
+          if not h:
+              raise SystemExit("Impossible d'extraire l'hôte depuis PRODUCTION_URL")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+              f.write(f"host={h}\n")
+          PY
 
       - name: Calculer le SHA court
         id: vars
@@ -635,7 +695,7 @@ jobs:
       - name: Dump PostgreSQL (sauvegarde pre-deploy)
         uses: appleboy/ssh-action@v1
         with:
-          host:     ${{ secrets.PROD_HOST }}
+          host:     ${{ steps.prod-ssh.outputs.host }}
           username: ${{ secrets.PROD_SSH_USER }}
           key:      ${{ secrets.PROD_SSH_KEY }}
           port:     ${{ secrets.PROD_SSH_PORT || 22 }}
@@ -658,7 +718,7 @@ jobs:
       - name: Deploy via SSH — production
         uses: appleboy/ssh-action@v1
         with:
-          host:     ${{ secrets.PROD_HOST }}
+          host:     ${{ steps.prod-ssh.outputs.host }}
           username: ${{ secrets.PROD_SSH_USER }}
           key:      ${{ secrets.PROD_SSH_KEY }}
           port:     ${{ secrets.PROD_SSH_PORT || 22 }}
@@ -702,19 +762,20 @@ jobs:
             echo "Production deployee — sha-${{ steps.vars.outputs.short-sha }}"
 
       - name: Smoke test production
+        env:
+          PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
         run: |
           sleep 10
-          curl -sf --retry 5 --retry-delay 5 \
-            http://${{ secrets.PROD_HOST }}/api/health || exit 1
-          curl -sf --retry 3 --retry-delay 3 \
-            http://${{ secrets.PROD_HOST }} || exit 1
+          BASE="${PRODUCTION_URL%/}"
+          curl -sf --retry 5 --retry-delay 5 "${BASE}/api/health" || exit 1
+          curl -sf --retry 3 --retry-delay 3 "${BASE}" || exit 1
           echo "Health check production OK"
 
       - name: Rollback automatique en cas d'echec
         if: failure()
         uses: appleboy/ssh-action@v1
         with:
-          host:     ${{ secrets.PROD_HOST }}
+          host:     ${{ steps.prod-ssh.outputs.host }}
           username: ${{ secrets.PROD_SSH_USER }}
           key:      ${{ secrets.PROD_SSH_KEY }}
           port:     ${{ secrets.PROD_SSH_PORT || 22 }}
