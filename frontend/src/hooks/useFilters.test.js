@@ -21,7 +21,9 @@ describe("useFilters", () => {
     });
 
     expect(result.current.filters.modele).toBe("");
-    expect(result.current.filtered.every((v) => v.make === "Peugeot")).toBe(true);
+    expect(result.current.filtered.every((v) => v.make === "Peugeot")).toBe(
+      true,
+    );
   });
 
   it("filtre par type lld uniquement", () => {
