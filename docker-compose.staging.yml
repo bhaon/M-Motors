@@ -1,10 +1,14 @@
 # M-Motors — override staging (images GHCR)
 # Prérequis : .env issu de .env.staging (GHCR_OWNER, secrets applicatifs…)
 #
+# Le service nginx (HTTPS) se construit depuis ./deploy/nginx (pas d’image GHCR) :
+#   docker compose -f docker-compose.yml -f docker-compose.staging.yml build nginx
+#
 # Exemple (aligné sur m-motors-CICD.yaml) :
 #   IMAGE_TAG=sha-$(git rev-parse --short HEAD) \
 #     docker compose -f docker-compose.yml -f docker-compose.staging.yml pull
-#   IMAGE_TAG=sha-... docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d --remove-orphans --no-build --wait
+#   docker compose -f docker-compose.yml -f docker-compose.staging.yml build nginx
+#   IMAGE_TAG=sha-... docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d --remove-orphans --wait
 
 services:
   frontend:

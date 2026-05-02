@@ -3,6 +3,11 @@
 # Frontend (image construite en local) :
 #   docker compose -f docker-compose.yml -f docker-compose.build.yml up --build -d frontend
 #
+# Pile complète avec HTTPS (nginx → Next.js + API & docs sur /api/*) :
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up --build -d
+#   → https://localhost:8443 (app), https://localhost:8443/api/docs (OpenAPI)
+#   Certificat auto-signé (volume nginx_ssl_data) ; SSL_CERT_CN pour le CN OpenSSL.
+#
 # Déploiement (images GHCR déjà buildées) — ne pas utiliser docker-compose.build.yml :
 #   IMAGE_TAG=sha-abc123 docker compose -f docker-compose.yml -f docker-compose.staging.yml pull
 #   IMAGE_TAG=sha-abc123 docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d --remove-orphans --no-build --wait
@@ -20,7 +25,9 @@ services:
     environment:
       NODE_ENV: production
       NEXT_TELEMETRY_DISABLED: "1"
+      # Pour nginx HTTPS en même origine : définir NEXT_PUBLIC_API_URL= (vide) dans .env
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      API_INTERNAL_URL: ${API_INTERNAL_URL:-http://backend:8000}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/"]
@@ -46,6 +53,26 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    restart: unless-stopped
+
+  nginx:
+    build:
+      context: ./deploy/nginx
+      dockerfile: Dockerfile
+    image: mmotors-nginx:${IMAGE_TAG:-local}
+    container_name: mmotors-nginx
+    ports:
+      - "${NGINX_HTTP_PORT:-8080}:80"
+      - "${NGINX_HTTPS_PORT:-8443}:443"
+    environment:
+      SSL_CERT_CN: ${SSL_CERT_CN:-localhost}
+    volumes:
+      - nginx_ssl_data:/etc/nginx/ssl
+    depends_on:
+      frontend:
+        condition: service_healthy
+      backend:
+        condition: service_started
     restart: unless-stopped
 
   postgres:
@@ -81,3 +108,4 @@ services:
 
 volumes:
   postgres_data:
+  nginx_ssl_data:

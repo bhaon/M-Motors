@@ -2,8 +2,8 @@
 # Sans ce fichier, les sections image des services doivent déjà exister (pull ou tag local).
 #
 # Usage :
-#   docker compose -f docker-compose.yml -f docker-compose.build.yml build frontend backend
-#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d frontend backend
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml build frontend backend nginx
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d
 
 services:
   frontend:
@@ -14,4 +14,9 @@ services:
   backend:
     build:
       context: ./backend
+      dockerfile: Dockerfile
+
+  nginx:
+    build:
+      context: ./deploy/nginx
       dockerfile: Dockerfile

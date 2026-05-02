@@ -1,10 +1,14 @@
 # M-Motors — override production (images GHCR)
 # Prérequis : .env issu de .env.production
 #
+# Nginx HTTPS : construire depuis ./deploy/nginx avant le up si besoin :
+#   docker compose -f docker-compose.yml -f docker-compose.production.yml build nginx
+#
 # Exemple :
 #   IMAGE_TAG=sha-$(git rev-parse --short HEAD) \
 #     docker compose -f docker-compose.yml -f docker-compose.production.yml pull
-#   IMAGE_TAG=sha-... docker compose -f docker-compose.yml -f docker-compose.production.yml up -d --remove-orphans --no-build --wait
+#   docker compose -f docker-compose.yml -f docker-compose.production.yml build nginx
+#   IMAGE_TAG=sha-... docker compose -f docker-compose.yml -f docker-compose.production.yml up -d --remove-orphans --wait
 
 services:
   frontend:
