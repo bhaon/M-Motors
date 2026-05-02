@@ -1,14 +1,16 @@
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
 import CataloguePage from "@/components/CataloguePage";
-import { VEHICLES } from "@/data/vehicles";
+import { fetchVehicles } from "@/lib/fetchVehicles";
 
-export default function Home() {
+export default async function Home() {
+  const vehicles = await fetchVehicles();
+
   return (
     <main>
       <Navbar />
-      <Hero vehicleCount={VEHICLES.length} />
-      <CataloguePage />
+      <Hero vehicleCount={vehicles.length} />
+      <CataloguePage vehicles={vehicles} />
     </main>
   );
 }

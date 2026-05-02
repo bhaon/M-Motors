@@ -20,6 +20,7 @@ services:
     environment:
       NODE_ENV: production
       NEXT_TELEMETRY_DISABLED: "1"
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/"]
@@ -29,13 +30,14 @@ services:
       start_period: 40s
 
   backend:
-    image: ghcr.io/${GHCR_OWNER:-local}/mmotors-backend:${IMAGE_TAG:-local}
+    image: mmotors-backend:${IMAGE_TAG:-local}
     container_name: mmotors-backend
     environment:
       ENV: ${ENV:-production}
-      DATABASE_URL: ${DATABASE_URL}
-      REDIS_URL: ${REDIS_URL}
-      SECRET_KEY: ${SECRET_KEY}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://mmotors:mmotors@postgres:5432/mmotors}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      SECRET_KEY: ${SECRET_KEY:-changez-moi}
+      ALLOWED_ORIGINS: '["http://localhost:${FRONTEND_PORT:-3000}"]'
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     depends_on:

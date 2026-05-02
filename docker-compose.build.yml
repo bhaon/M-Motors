@@ -1,12 +1,17 @@
-# Overlay optionnel : construire le frontend depuis les sources (développement local).
-# Sans ce fichier, la section image du service frontend doit déjà exister (pull ou tag local).
+# Overlay optionnel : construire frontend + backend depuis les sources (développement local).
+# Sans ce fichier, les sections image des services doivent déjà exister (pull ou tag local).
 #
 # Usage :
-#   docker compose -f docker-compose.yml -f docker-compose.build.yml build frontend
-#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d frontend
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml build frontend backend
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d frontend backend
 
 services:
   frontend:
     build:
       context: ./frontend
+      dockerfile: Dockerfile
+
+  backend:
+    build:
+      context: ./backend
       dockerfile: Dockerfile

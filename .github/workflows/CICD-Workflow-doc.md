@@ -400,7 +400,7 @@ services:
 ### Exemple de `.env.staging`
 
 ```dotenv
-DATABASE_URL=postgresql+asyncpg://mmotors:password@postgres:5432/mmotors
+DATABASE_URL=postgresql://mmotors:password@postgres:5432/mmotors
 REDIS_URL=redis://redis:6379/0
 SECRET_KEY=<clé-secrète-staging>
 NEXT_PUBLIC_API_URL=http://192.168.1.50:8000

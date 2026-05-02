@@ -13,32 +13,32 @@ const DEFAULT_FILTERS: Filters = {
   type: "all",
 };
 
-export function useFilters() {
+export function useFilters(sourceVehicles: Vehicle[] = VEHICLES) {
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
 
   const marques = useMemo(
     () =>
-      [...new Set(VEHICLES.map((v) => v.make))].sort((a, b) =>
+      [...new Set(sourceVehicles.map((v) => v.make))].sort((a, b) =>
         a.localeCompare(b),
       ),
-    [],
+    [sourceVehicles],
   );
 
   const modeles = useMemo(
     () =>
       [
         ...new Set(
-          VEHICLES.filter(
+          sourceVehicles.filter(
             (v) => !filters.marque || v.make === filters.marque,
           ).map((v) => v.model),
         ),
       ].sort((a, b) => a.localeCompare(b)),
 
-    [filters.marque],
+    [filters.marque, sourceVehicles],
   );
 
   const filtered = useMemo(() => {
-    return VEHICLES.filter((v) => {
+    return sourceVehicles.filter((v) => {
       if (filters.marque && v.make !== filters.marque) return false;
       if (filters.modele && v.model !== filters.modele) return false;
       if (filters.moteur && v.moteur !== filters.moteur) return false;
@@ -48,7 +48,7 @@ export function useFilters() {
       if (filters.type === "lld" && !v.lld) return false;
       return true;
     });
-  }, [filters]);
+  }, [filters, sourceVehicles]);
 
   const setType = (type: ContratType) => setFilters((f) => ({ ...f, type }));
 

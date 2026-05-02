@@ -40,4 +40,74 @@ describe("VehicleModal", () => {
     unmount();
     expect(document.body.classList.contains("modal-open")).toBe(false);
   });
+
+  it("ferme la modale au clic sur le fond", () => {
+    const onClose = jest.fn();
+    const vehicle = VEHICLES[0];
+    const { container } = render(
+      <VehicleModal
+        vehicle={vehicle}
+        onClose={onClose}
+        onDossier={jest.fn()}
+      />,
+    );
+
+    const backdrop = container.firstChild;
+    fireEvent.click(backdrop, { target: backdrop, currentTarget: backdrop });
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("affiche le parcours achat pour un véhicule sans LLD", () => {
+    const vehicle = VEHICLES.find((v) => !v.lld);
+    expect(vehicle).toBeDefined();
+
+    render(
+      <VehicleModal
+        vehicle={vehicle}
+        onClose={jest.fn()}
+        onDossier={jest.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Déposer un dossier Achat" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Déposer un dossier LLD" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("affiche les options LLD quand le véhicule en propose", () => {
+    const vehicle = VEHICLES[0];
+    expect(vehicle.options.length).toBeGreaterThan(0);
+
+    render(
+      <VehicleModal
+        vehicle={vehicle}
+        onClose={jest.fn()}
+        onDossier={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Options LLD disponibles")).toBeInTheDocument();
+    expect(screen.getByText(vehicle.options[0].n)).toBeInTheDocument();
+  });
+
+  it("dépose un dossier achat via le bouton principal sans LLD", () => {
+    const vehicle = VEHICLES.find((v) => !v.lld);
+    const onDossier = jest.fn();
+
+    render(
+      <VehicleModal
+        vehicle={vehicle}
+        onClose={jest.fn()}
+        onDossier={onDossier}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Déposer un dossier Achat" }),
+    );
+    expect(onDossier).toHaveBeenCalledWith(vehicle, "achat");
+  });
 });

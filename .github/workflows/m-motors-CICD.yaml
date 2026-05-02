@@ -242,7 +242,7 @@ jobs:
         env:
           ENV: test
           SECRET_KEY: ci-test-secret
-          DATABASE_URL: sqlite+aiosqlite:///./test.db
+          DATABASE_URL: sqlite:///./test.db
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -306,7 +306,7 @@ jobs:
       - name: Migrations Alembic
         run: alembic upgrade head
         env:
-          DATABASE_URL: postgresql+asyncpg://mmotors:mmotors_test@localhost:5432/mmotors_test
+          DATABASE_URL: postgresql://mmotors:mmotors_test@localhost:5432/mmotors_test
 
       - name: Pytest — tests d'intégration
         run: |
@@ -316,7 +316,7 @@ jobs:
         env:
           ENV: test
           SECRET_KEY: ci-test-secret
-          DATABASE_URL: postgresql+asyncpg://mmotors:mmotors_test@localhost:5432/mmotors_test
+          DATABASE_URL: postgresql://mmotors:mmotors_test@localhost:5432/mmotors_test
           REDIS_URL: redis://localhost:6379/0
 
       - uses: actions/upload-artifact@v4

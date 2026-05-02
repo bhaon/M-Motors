@@ -3,6 +3,13 @@ import VehicleCard from "./VehicleCard";
 import { VEHICLES } from "@/data/vehicles";
 
 describe("VehicleCard", () => {
+  it("affiche le badge achat pour un véhicule sans LLD", () => {
+    const v = VEHICLES.find((x) => !x.lld);
+    expect(v).toBeDefined();
+    render(<VehicleCard vehicle={v} onClick={jest.fn()} />);
+    expect(screen.getByText("Achat uniquement")).toBeInTheDocument();
+  });
+
   it("déclenche onClick sur la carte et le bouton", () => {
     const onClick = jest.fn();
     const vehicle = VEHICLES[0];
@@ -14,5 +21,9 @@ describe("VehicleCard", () => {
 
     fireEvent.click(screen.getByText(vehicle.model, { exact: false }));
     expect(onClick).toHaveBeenCalledTimes(2);
+
+    const card = document.querySelector(".vehicle-card");
+    fireEvent.mouseEnter(card);
+    fireEvent.mouseLeave(card);
   });
 });

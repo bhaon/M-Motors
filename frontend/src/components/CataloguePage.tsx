@@ -10,10 +10,14 @@ import VehicleCard from "@/components/VehicleCard";
 import VehicleModal from "@/components/VehicleModal";
 import Toast from "@/components/Toast";
 
-export default function CataloguePage() {
+interface CataloguePageProps {
+  vehicles: Vehicle[];
+}
+
+export default function CataloguePage({ vehicles }: Readonly<CataloguePageProps>) {
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const { filters, filtered, marques, modeles, setType, setField, reset } =
-    useFilters();
+    useFilters(vehicles);
   const { toast, showToast } = useToast();
 
   function handleDossier(v: Vehicle, type: "lld" | "achat") {
