@@ -21,6 +21,8 @@ WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# Next.js peut fonctionner sans assets statiques ; le dossier doit exister pour le stage runner.
+RUN mkdir -p public
 
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
