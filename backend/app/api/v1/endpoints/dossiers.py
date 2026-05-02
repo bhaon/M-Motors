@@ -1,9 +1,9 @@
 import secrets
 import string
 from datetime import datetime, timezone
-from typing import cast
+from typing import Annotated, cast
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Body, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.api.v1.openapi_responses import openapi_http_error
@@ -66,7 +66,7 @@ def _add_historique(db, dossier_id, ancien, nouveau, commentaire=None, operateur
     },
 )
 def create_dossier(
-    payload: DossierCreate,
+    payload: Annotated[DossierCreate, Body()],
     db: DbSession,
     current_user: CurrentUser,
 ):
@@ -196,10 +196,10 @@ def get_my_dossier(
 def list_dossiers_bo(
     db: DbSession,
     _: GestionnaireUser,
-    status: str = Query(None),
-    type_contrat: str = Query(None),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=100),
+    status: Annotated[str | None, Query()] = None,
+    type_contrat: Annotated[str | None, Query()] = None,
+    skip: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
 ):
     q = db.query(Dossier)
     if status:
@@ -351,7 +351,7 @@ def validate_dossier(
 )
 def reject_dossier(
     dossier_id: int,
-    payload: DossierRejectIn,
+    payload: Annotated[DossierRejectIn, Body()],
     db: DbSession,
     current_user: GestionnaireUser,
 ):

@@ -1,4 +1,6 @@
-from fastapi import APIRouter, HTTPException, status
+from typing import Annotated
+
+from fastapi import APIRouter, Body, HTTPException, status
 
 from app.api.v1.openapi_responses import openapi_http_error
 from app.core.deps import CurrentUser, DbSession
@@ -31,7 +33,7 @@ _R401 = openapi_http_error(
         },
     },
 )
-def register(payload: UserCreate, db: DbSession):
+def register(payload: Annotated[UserCreate, Body()], db: DbSession):
     if db.query(User).filter(User.email == payload.email).first():
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -76,7 +78,7 @@ def register(payload: UserCreate, db: DbSession):
         },
     },
 )
-def login(payload: LoginIn, db: DbSession):
+def login(payload: Annotated[LoginIn, Body()], db: DbSession):
     user = (
         db.query(User)
         .filter(
@@ -119,7 +121,7 @@ def get_me(current_user: CurrentUser):
     responses={**_R401},
 )
 def update_me(
-    payload: UserUpdate,
+    payload: Annotated[UserUpdate, Body()],
     db: DbSession,
     current_user: CurrentUser,
 ):

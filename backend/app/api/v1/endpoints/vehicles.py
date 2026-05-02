@@ -1,6 +1,6 @@
-from typing import Optional
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Body, HTTPException, Query, status
 
 from app.api.v1.openapi_responses import openapi_http_error
 from app.core.deps import DbSession, GestionnaireUser
@@ -30,14 +30,14 @@ _R404_VEHICULE = openapi_http_error(
 @router.get("", response_model=VehicleListOut, summary="US-01-01/03 — Catalogue public avec filtres")
 def list_vehicles(
     db: DbSession,
-    marque: Optional[str] = Query(None),
-    modele: Optional[str] = Query(None),
-    moteur: Optional[MoteurEnum] = Query(None),
-    km_max: Optional[int] = Query(None, alias="kmMax"),
-    prix_max: Optional[float] = Query(None, alias="prixMax"),
-    type_contrat: Optional[str] = Query(None, alias="type"),  # all | achat | lld
-    skip: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=100),
+    marque: Annotated[str | None, Query()] = None,
+    modele: Annotated[str | None, Query()] = None,
+    moteur: Annotated[MoteurEnum | None, Query()] = None,
+    km_max: Annotated[int | None, Query(alias="kmMax")] = None,
+    prix_max: Annotated[float | None, Query(alias="prixMax")] = None,
+    type_contrat: Annotated[str | None, Query(alias="type")] = None,  # all | achat | lld
+    skip: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
 ):
     q = db.query(Vehicle).filter(
         Vehicle.archived == False,
@@ -115,7 +115,7 @@ def get_vehicle(vehicle_id: int, db: DbSession):
     responses={**_R403_BO},
 )
 def create_vehicle(
-    payload: VehicleCreate,
+    payload: Annotated[VehicleCreate, Body()],
     db: DbSession,
     _: GestionnaireUser,
 ):
@@ -137,7 +137,7 @@ def create_vehicle(
 )
 def update_vehicle(
     vehicle_id: int,
-    payload: VehicleUpdate,
+    payload: Annotated[VehicleUpdate, Body()],
     db: DbSession,
     _: GestionnaireUser,
 ):

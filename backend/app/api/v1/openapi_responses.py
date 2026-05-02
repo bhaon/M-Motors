@@ -6,9 +6,7 @@ from typing import Any
 OpenAPIResponseFragment = dict[int | str, dict[str, Any]]
 
 
-def openapi_http_error(
-    status_code: int, description: str, detail_example: str
-) -> OpenAPIResponseFragment:
+def openapi_http_error(status_code: int, description: str, detail_example: str) -> OpenAPIResponseFragment:
     """
     Retourne un fragment ``{status_code: {...}}`` pour documenter une réponse d'erreur
     au format FastAPI ``{"detail": "..."}``.
