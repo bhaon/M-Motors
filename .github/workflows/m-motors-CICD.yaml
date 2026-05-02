@@ -355,6 +355,13 @@ jobs:
         env:
           CI: true
 
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-coverage
+          path: frontend/coverage/lcov.info
+          retention-days: 14
+
   # ──────────────────────────────────────────────────────────────────────────
   # JOB 7 — BUILD FRONTEND (next build)
   # ──────────────────────────────────────────────────────────────────────────
@@ -405,6 +412,12 @@ jobs:
           path: backend/
         continue-on-error: true
 
+      - uses: actions/download-artifact@v4
+        with:
+          name: frontend-coverage
+          path: frontend/coverage/
+        continue-on-error: true
+
       - name: Vérifier la config SonarCloud
         id: sonar-config
         run: |
@@ -426,6 +439,7 @@ jobs:
             -Dsonar.organization=${{ env.SONAR_ORGANIZATION }}
             -Dsonar.sources=frontend/src,backend/app
             -Dsonar.python.coverage.reportPaths=backend/coverage.xml
+            -Dsonar.javascript.lcov.reportPaths=frontend/coverage/lcov.info
             -Dsonar.qualitygate.wait=true
 
   # ──────────────────────────────────────────────────────────────────────────
