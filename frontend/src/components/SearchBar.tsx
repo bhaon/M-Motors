@@ -1,81 +1,116 @@
-'use client'
+"use client";
 
 interface SearchBarProps {
-  marques: string[]
-  modeles: string[]
-  marque: string
-  modele: string
-  moteur: string
-  kmMax: number | null
-  prixMax: number | null
-  onField: (field: string, value: string | number | null) => void
-  onSearch: () => void
+  marques: string[];
+  modeles: string[];
+  marque: string;
+  modele: string;
+  moteur: string;
+  kmMax: number | null;
+  prixMax: number | null;
+  onField: (field: string, value: string | number | null) => void;
+  onSearch: () => void;
 }
 
 const selectStyle: React.CSSProperties = {
-  border: '1px solid var(--border)',
-  borderRadius: '7px',
-  padding: '.48rem .7rem',
-  fontSize: '.85rem',
-  fontFamily: 'DM Sans, sans-serif',
-  color: 'var(--navy)',
-  background: 'var(--white)',
-  outline: 'none',
-  width: '100%',
-}
+  border: "1px solid var(--border)",
+  borderRadius: "7px",
+  padding: ".48rem .7rem",
+  fontSize: ".85rem",
+  fontFamily: "DM Sans, sans-serif",
+  color: "var(--navy)",
+  background: "var(--white)",
+  outline: "none",
+  width: "100%",
+};
 
 const labelStyle: React.CSSProperties = {
-  fontSize: '.72rem',
+  fontSize: ".72rem",
   fontWeight: 600,
-  color: 'var(--muted)',
-  textTransform: 'uppercase',
-  letterSpacing: '.07em',
-  marginBottom: '.35rem',
-  display: 'block',
-}
+  color: "var(--muted)",
+  textTransform: "uppercase",
+  letterSpacing: ".07em",
+  marginBottom: ".35rem",
+  display: "block",
+};
 
 export default function SearchBar({
-  marques, modeles, marque, modele, moteur, kmMax, prixMax, onField, onSearch,
+  marques,
+  modeles,
+  marque,
+  modele,
+  moteur,
+  kmMax,
+  prixMax,
+  onField,
+  onSearch,
 }: SearchBarProps) {
   return (
-    <div style={{
-      background: 'var(--white)',
-      borderRadius: 'var(--radius)',
-      boxShadow: 'var(--shadow)',
-      padding: '1.25rem 1.5rem',
-      margin: '0 2rem',
-      position: 'relative',
-      top: '-1.2rem',
-      zIndex: 10,
-      display: 'grid',
-      gridTemplateColumns: '1fr auto',
-      gap: '1rem',
-      alignItems: 'end',
-    }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr', gap: '.75rem' }}>
-
+    <div
+      style={{
+        background: "var(--white)",
+        borderRadius: "var(--radius)",
+        boxShadow: "var(--shadow)",
+        padding: "1.25rem 1.5rem",
+        margin: "0 2rem",
+        position: "relative",
+        top: "-1.2rem",
+        zIndex: 10,
+        display: "grid",
+        gridTemplateColumns: "1fr auto",
+        gap: "1rem",
+        alignItems: "end",
+      }}
+    >
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr",
+          gap: ".75rem",
+        }}
+      >
         {/* Marque */}
         <div>
           <label style={labelStyle}>Marque</label>
-          <select style={selectStyle} value={marque} onChange={e => onField('marque', e.target.value)}>
+          <select
+            style={selectStyle}
+            value={marque}
+            onChange={(e) => onField("marque", e.target.value)}
+          >
             <option value="">Toutes</option>
-            {marques.map(m => <option key={m} value={m}>{m}</option>)}
+            {marques.map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
           </select>
         </div>
 
         {/* Modèle */}
         <div>
           <label style={labelStyle}>Modèle</label>
-          <select style={selectStyle} value={modele} onChange={e => onField('modele', e.target.value)}>
+          <select
+            style={selectStyle}
+            value={modele}
+            onChange={(e) => onField("modele", e.target.value)}
+          >
             <option value="">Tous</option>
-            {modeles.map(m => <option key={m} value={m}>{m}</option>)}
+            {modeles.map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
           </select>
         </div>
 
         {/* Motorisation */}
         <div>
           <label style={labelStyle}>Motorisation</label>
-          <select style={selectStyle} value={moteur} onChange={e => onField('moteur', e.target.value)}>
+          <select
+            style={selectStyle}
+            value={moteur}
+            onChange={(e) => onField("moteur", e.target.value)}
+          >
             <option value="">Toutes</option>
             <option>Essence</option>
             <option>Diesel</option>
@@ -89,8 +124,10 @@ export default function SearchBar({
           <label style={labelStyle}>Km max</label>
           <select
             style={selectStyle}
-            value={kmMax ?? ''}
-            onChange={e => onField('kmMax', e.target.value ? parseInt(e.target.value) : null)}
+            value={kmMax ?? ""}
+            onChange={(e) =>
+              onField("kmMax", e.target.value ? parseInt(e.target.value) : null)
+            }
           >
             <option value="">Tous</option>
             <option value="30000">— 30 000 km</option>
@@ -109,8 +146,13 @@ export default function SearchBar({
             placeholder="Ex: 25000"
             min={0}
             step={1000}
-            value={prixMax ?? ''}
-            onChange={e => onField('prixMax', e.target.value ? parseInt(e.target.value) : null)}
+            value={prixMax ?? ""}
+            onChange={(e) =>
+              onField(
+                "prixMax",
+                e.target.value ? parseInt(e.target.value) : null,
+              )
+            }
           />
         </div>
       </div>
@@ -118,20 +160,20 @@ export default function SearchBar({
       <button
         onClick={onSearch}
         style={{
-          background: 'var(--cyan)',
-          color: 'var(--white)',
-          border: 'none',
-          borderRadius: '8px',
-          padding: '.72rem 1.5rem',
-          fontSize: '.9rem',
+          background: "var(--cyan)",
+          color: "var(--white)",
+          border: "none",
+          borderRadius: "8px",
+          padding: ".72rem 1.5rem",
+          fontSize: ".9rem",
           fontWeight: 600,
-          cursor: 'pointer',
-          fontFamily: 'Syne, sans-serif',
-          whiteSpace: 'nowrap',
+          cursor: "pointer",
+          fontFamily: "Syne, sans-serif",
+          whiteSpace: "nowrap",
         }}
       >
         Rechercher
       </button>
     </div>
-  )
+  );
 }
