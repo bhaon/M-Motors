@@ -8,6 +8,7 @@
 #   → https://localhost:8443 (app), https://localhost:8443/api/docs (OpenAPI)
 #   Certificat auto-signé (volume nginx_ssl_data) ; SSL_CERT_CN = hostname ou IP publique (SAN).
 #   Accès distant : ouvrir NGINX_HTTPS_PORT / NGINX_HTTP_PORT au pare-feu ; URL https://<IP>:8443
+#   Backend uvicorn en TLS sur :8000 ; volume internal_tls (cert partagé) + nginx → https://backend.
 #
 # Déploiement (images GHCR déjà buildées) — ne pas utiliser docker-compose.build.yml :
 #   IMAGE_TAG=sha-abc123 docker compose -f docker-compose.yml -f docker-compose.staging.yml pull
@@ -28,7 +29,13 @@ services:
       NEXT_TELEMETRY_DISABLED: "1"
       # Pour nginx HTTPS en même origine : définir NEXT_PUBLIC_API_URL= (vide) dans .env
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
-      API_INTERNAL_URL: ${API_INTERNAL_URL:-http://backend:8000}
+      API_INTERNAL_URL: ${API_INTERNAL_URL:-https://backend:8000}
+      NODE_EXTRA_CA_CERTS: /certs/server.pem
+    volumes:
+      - internal_tls:/certs:ro
+    depends_on:
+      backend:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/"]
@@ -49,11 +56,25 @@ services:
       ALLOWED_ORIGINS: '["http://localhost:${FRONTEND_PORT:-3000}"]'
     ports:
       - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - internal_tls:/certs
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import ssl,urllib.request;c=ssl.create_default_context();c.load_verify_locations('/certs/server.pem');urllib.request.urlopen('https://127.0.0.1:8000/api/health',context=c)",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 45s
     restart: unless-stopped
 
   nginx:
@@ -69,11 +90,12 @@ services:
       SSL_CERT_CN: ${SSL_CERT_CN:-localhost}
     volumes:
       - nginx_ssl_data:/etc/nginx/ssl
+      - internal_tls:/certs:ro
     depends_on:
       frontend:
         condition: service_healthy
       backend:
-        condition: service_started
+        condition: service_healthy
     restart: unless-stopped
 
   postgres:
@@ -110,3 +132,4 @@ services:
 volumes:
   postgres_data:
   nginx_ssl_data:
+  internal_tls:

@@ -1,15 +1,16 @@
 # ──────────────────────────────────────────────
 #  M-Motors — FastAPI Backend
 #  Build : docker build -t mmotors-api .
+#  TLS interne : certificat dans /certs (volume partagé avec frontend / nginx).
 # ──────────────────────────────────────────────
 
 FROM python:3.12-slim
 
 WORKDIR /app
 
-# System deps (psycopg2 needs libpq)
+# System deps (psycopg2 + TLS interne)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq-dev gcc \
+    libpq-dev gcc openssl \
     && rm -rf /var/lib/apt/lists/*
 
 # Python deps
@@ -19,13 +20,14 @@ RUN pip install --no-cache-dir -r requirements.txt
 # App source
 COPY . .
 
-# Non-root user
 RUN adduser --system --uid 1001 fastapi
-USER fastapi
+
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 
 EXPOSE 8000
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD python -c "import ssl,urllib.request; c=ssl.create_default_context(); c.load_verify_locations('/certs/server.pem'); urllib.request.urlopen('https://127.0.0.1:8000/api/health', context=c)"
 
-CMD ["uvicorn", "app.main:application", "--host", "0.0.0.0", "--port", "8000"]
+ENTRYPOINT ["/docker-entrypoint.sh"]

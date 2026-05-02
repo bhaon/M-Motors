@@ -29,7 +29,7 @@ describe("fetchVehicles (SSR)", () => {
     );
   });
 
-  it("utilise http://backend:8000 par défaut côté Node", async () => {
+  it("utilise https://backend:8000 par défaut côté Node", async () => {
     delete process.env.NEXT_PUBLIC_API_URL;
     delete process.env.API_INTERNAL_URL;
     global.fetch = jest.fn().mockResolvedValue({
@@ -39,7 +39,7 @@ describe("fetchVehicles (SSR)", () => {
 
     await fetchVehicles();
     expect(global.fetch).toHaveBeenCalledWith(
-      "http://backend:8000/api/v1/vehicules",
+      "https://backend:8000/api/v1/vehicules",
       { cache: "no-store" },
     );
   });

@@ -3,14 +3,14 @@ import type { Vehicle } from "@/types";
 
 /**
  * Résout l'URL de base pour l'API catalogue : env public, même origine (navigateur),
- * ou URL interne (SSR Docker derrière nginx).
+ * ou URL interne en HTTPS (SSR dans Docker ; défaut https://backend:8000 + CA via NODE_EXTRA_CA_CERTS).
  */
 function resolveVehiclesApiUrl(): string {
   const pub = process.env.NEXT_PUBLIC_API_URL?.trim();
   if (pub) return `${pub.replace(/\/$/, "")}/api/v1/vehicules`;
   if (typeof window !== "undefined") return "/api/v1/vehicules";
   const internal = (
-    process.env.API_INTERNAL_URL ?? "http://backend:8000"
+    process.env.API_INTERNAL_URL ?? "https://backend:8000"
   ).replace(/\/$/, "");
   return `${internal}/api/v1/vehicules`;
 }
