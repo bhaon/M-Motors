@@ -1,5 +1,5 @@
 import type { ContratType, Filters, Vehicle } from "@/types";
-import { VEHICLES } from "@/data/vehicles";
+import { SAMPLE_VEHICLES } from "../fixtures/vehicles";
 
 const MOTEURS: Vehicle["moteur"][] = [
   "Essence",
@@ -56,8 +56,8 @@ function assertVehicle(v: unknown): void {
 }
 
 describe("types / contrat runtime", () => {
-  it("chaque entrée de VEHICLES respecte la forme Vehicle", () => {
-    for (const v of VEHICLES) {
+  it("chaque entrée de l’échantillon de test respecte la forme Vehicle", () => {
+    for (const v of SAMPLE_VEHICLES) {
       assertVehicle(v);
     }
   });

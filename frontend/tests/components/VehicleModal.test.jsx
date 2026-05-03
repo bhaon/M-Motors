@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import VehicleModal from "@/components/VehicleModal";
-import { VEHICLES } from "@/data/vehicles";
+import { SAMPLE_VEHICLES } from "../fixtures/vehicles";
 
 describe("VehicleModal", () => {
   it("n'affiche rien si aucun véhicule n'est sélectionné", () => {
@@ -14,7 +14,7 @@ describe("VehicleModal", () => {
   it("gère fermeture clavier et actions dossier", () => {
     const onClose = jest.fn();
     const onDossier = jest.fn();
-    const vehicle = VEHICLES.find((v) => v.lld) || VEHICLES[0];
+    const vehicle = SAMPLE_VEHICLES.find((v) => v.lld) || SAMPLE_VEHICLES[0];
 
     const { unmount } = render(
       <VehicleModal
@@ -43,7 +43,7 @@ describe("VehicleModal", () => {
 
   it("ferme la modale au clic sur le fond", () => {
     const onClose = jest.fn();
-    const vehicle = VEHICLES[0];
+    const vehicle = SAMPLE_VEHICLES[0];
     const { container } = render(
       <VehicleModal
         vehicle={vehicle}
@@ -58,7 +58,7 @@ describe("VehicleModal", () => {
   });
 
   it("affiche le parcours achat pour un véhicule sans LLD", () => {
-    const vehicle = VEHICLES.find((v) => !v.lld);
+    const vehicle = SAMPLE_VEHICLES.find((v) => !v.lld);
     expect(vehicle).toBeDefined();
 
     render(
@@ -78,7 +78,7 @@ describe("VehicleModal", () => {
   });
 
   it("affiche les options LLD quand le véhicule en propose", () => {
-    const vehicle = VEHICLES[0];
+    const vehicle = SAMPLE_VEHICLES[0];
     expect(vehicle.options.length).toBeGreaterThan(0);
 
     render(
@@ -94,7 +94,7 @@ describe("VehicleModal", () => {
   });
 
   it("dépose un dossier achat via le bouton principal sans LLD", () => {
-    const vehicle = VEHICLES.find((v) => !v.lld);
+    const vehicle = SAMPLE_VEHICLES.find((v) => !v.lld);
     const onDossier = jest.fn();
 
     render(

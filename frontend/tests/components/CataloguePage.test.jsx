@@ -1,15 +1,16 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import CataloguePage from "@/components/CataloguePage";
-import { VEHICLES } from "@/data/vehicles";
+import { SAMPLE_VEHICLES } from "../fixtures/vehicles";
 
 describe("CataloguePage", () => {
-  it("affiche l'état vide si aucun véhicule", () => {
+  it("affiche le message catalogue vide (installation sans seed)", () => {
     render(<CataloguePage vehicles={[]} />);
-    expect(screen.getByText("Aucun véhicule trouvé")).toBeInTheDocument();
+    expect(screen.getByText("Catalogue vide")).toBeInTheDocument();
+    expect(screen.getByText(/python scripts\/seed\.py/i)).toBeInTheDocument();
   });
 
   it("affiche les cartes et ouvre la fiche au clic", () => {
-    const v = VEHICLES[0];
+    const v = SAMPLE_VEHICLES[0];
     render(<CataloguePage vehicles={[v]} />);
 
     fireEvent.click(document.querySelector(".vehicle-card"));
@@ -17,7 +18,7 @@ describe("CataloguePage", () => {
   });
 
   it("déclenche le toast après dépôt de dossier", () => {
-    const v = VEHICLES[0];
+    const v = SAMPLE_VEHICLES[0];
     render(<CataloguePage vehicles={[v]} />);
 
     fireEvent.click(document.querySelector(".vehicle-card"));
@@ -27,7 +28,7 @@ describe("CataloguePage", () => {
   });
 
   it("met à jour les filtres via la barre de recherche", () => {
-    render(<CataloguePage vehicles={VEHICLES} />);
+    render(<CataloguePage vehicles={SAMPLE_VEHICLES} />);
     fireEvent.change(screen.getAllByRole("combobox")[0], {
       target: { value: "Peugeot" },
     });
@@ -35,7 +36,7 @@ describe("CataloguePage", () => {
   });
 
   it("ferme la modale via le bouton Fermer", () => {
-    const v = VEHICLES[0];
+    const v = SAMPLE_VEHICLES[0];
     render(<CataloguePage vehicles={[v]} />);
 
     fireEvent.click(document.querySelector(".vehicle-card"));
@@ -46,7 +47,7 @@ describe("CataloguePage", () => {
   });
 
   it("déclenche le toast pour un dossier achat (véhicule sans LLD)", () => {
-    const v = VEHICLES.find((x) => !x.lld);
+    const v = SAMPLE_VEHICLES.find((x) => !x.lld);
     expect(v).toBeDefined();
     render(<CataloguePage vehicles={[v]} />);
 
@@ -57,18 +58,18 @@ describe("CataloguePage", () => {
   });
 
   it("réinitialise les filtres depuis la ligne de chips", () => {
-    render(<CataloguePage vehicles={VEHICLES} />);
+    render(<CataloguePage vehicles={SAMPLE_VEHICLES} />);
     fireEvent.change(screen.getAllByRole("combobox")[0], {
       target: { value: "Peugeot" },
     });
     fireEvent.click(screen.getByText("Réinitialiser les filtres"));
     expect(
-      screen.getByText(`${VEHICLES.length} véhicules`),
+      screen.getByText(`${SAMPLE_VEHICLES.length} véhicules`),
     ).toBeInTheDocument();
   });
 
   it("exécute le callback Rechercher de la barre de recherche", () => {
-    render(<CataloguePage vehicles={VEHICLES} />);
+    render(<CataloguePage vehicles={SAMPLE_VEHICLES} />);
     fireEvent.click(screen.getByRole("button", { name: /Rechercher/i }));
   });
 });

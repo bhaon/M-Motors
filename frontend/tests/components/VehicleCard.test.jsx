@@ -1,10 +1,10 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import VehicleCard from "@/components/VehicleCard";
-import { VEHICLES } from "@/data/vehicles";
+import { SAMPLE_VEHICLES } from "../fixtures/vehicles";
 
 describe("VehicleCard", () => {
   it("affiche le badge achat pour un véhicule sans LLD", () => {
-    const v = VEHICLES.find((x) => !x.lld);
+    const v = SAMPLE_VEHICLES.find((x) => !x.lld);
     expect(v).toBeDefined();
     render(<VehicleCard vehicle={v} onClick={jest.fn()} />);
     expect(screen.getByText("Achat uniquement")).toBeInTheDocument();
@@ -12,7 +12,7 @@ describe("VehicleCard", () => {
 
   it("déclenche onClick sur la carte et le bouton", () => {
     const onClick = jest.fn();
-    const vehicle = VEHICLES[0];
+    const vehicle = SAMPLE_VEHICLES[0];
 
     render(<VehicleCard vehicle={vehicle} onClick={onClick} />);
 

@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { VEHICLES } from "@/data/vehicles";
+import { SAMPLE_VEHICLES } from "../fixtures/vehicles";
 import { fetchVehicles } from "@/app/fetchVehicles";
 import Home from "@/app/page";
 
@@ -12,7 +12,7 @@ const mockedFetch = jest.mocked(fetchVehicles);
 describe("Home (page.tsx)", () => {
   beforeEach(() => {
     mockedFetch.mockClear();
-    mockedFetch.mockResolvedValue(VEHICLES.slice(0, 2));
+    mockedFetch.mockResolvedValue(SAMPLE_VEHICLES.slice(0, 2));
   });
 
   it("compose la page catalogue à partir des véhicules récupérés", async () => {

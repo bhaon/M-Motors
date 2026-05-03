@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { VEHICLES } from "@/data/vehicles";
 import { Filters, ContratType, Vehicle } from "@/types";
 
 const DEFAULT_FILTERS: Filters = {
@@ -13,7 +12,10 @@ const DEFAULT_FILTERS: Filters = {
   type: "all",
 };
 
-export function useFilters(sourceVehicles: Vehicle[] = VEHICLES) {
+/**
+ * Filtre une liste de véhicules fournie par le parent (données API).
+ */
+export function useFilters(sourceVehicles: Vehicle[]) {
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
 
   const marques = useMemo(

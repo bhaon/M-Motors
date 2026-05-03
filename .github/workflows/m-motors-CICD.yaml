@@ -541,6 +541,8 @@ jobs:
       security-events: write  # upload-sarif vers l’onglet Security / Code scanning
 
     steps:
+      - uses: actions/checkout@v4
+
       - name: Login GHCR
         uses: docker/login-action@v3
         with:
@@ -593,278 +595,281 @@ jobs:
   # JOB 11 — DEPLOIEMENT STAGING (branche develop)
   # SSH vers serveur local — docker compose up
   # ──────────────────────────────────────────────────────────────────────────
-  deploy-staging:
-    name: "🚀 Deploy → Staging (Docker Compose)"
-    runs-on: ubuntu-latest
-    needs: trivy-scan
-    if: github.ref == 'refs/heads/develop'
-    environment:
-      name: staging
-      # URL du déploiement (UI GitHub) : `secrets` est interdit ici — utiliser une variable de dépôt.
-      url: ${{ vars.STAGING_URL }}
+  
+  # deploy-staging:
+  #   name: "🚀 Deploy → Staging (Docker Compose)"
+  #   runs-on: ubuntu-latest
+  #   needs: trivy-scan
+  #   if: github.ref == 'refs/heads/develop'
+  #   environment:
+  #     name: staging
+  #     # URL du déploiement (UI GitHub) : `secrets` est interdit ici — utiliser une variable de dépôt.
+  #     url: ${{ vars.STAGING_URL }}
 
-    steps:
-      - uses: actions/checkout@v4
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      - name: Extraire l'hôte SSH depuis STAGING_URL
-        id: staging-ssh
-        env:
-          STAGING_URL: ${{ vars.STAGING_URL }}
-        run: |
-          python3 <<'PY'
-          import os, urllib.parse
-          u = os.environ.get("STAGING_URL", "").strip()
-          if not u:
-              raise SystemExit("Variable de dépôt STAGING_URL manquante ou vide")
-          if not u.startswith(("http://", "https://")):
-              u = "http://" + u
-          h = urllib.parse.urlparse(u).hostname
-          if not h:
-              raise SystemExit("Impossible d'extraire l'hôte depuis STAGING_URL")
-          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
-              f.write(f"host={h}\n")
-          PY
+  #     - name: Extraire l'hôte SSH depuis STAGING_URL
+  #       id: staging-ssh
+  #       env:
+  #         STAGING_URL: ${{ vars.STAGING_URL }}
+  #       run: |
+  #         python3 <<'PY'
+  #         import os, urllib.parse
+  #         u = os.environ.get("STAGING_URL", "").strip()
+  #         if not u:
+  #             raise SystemExit("Variable de dépôt STAGING_URL manquante ou vide")
+  #         if not u.startswith(("http://", "https://")):
+  #             u = "http://" + u
+  #         h = urllib.parse.urlparse(u).hostname
+  #         if not h:
+  #             raise SystemExit("Impossible d'extraire l'hôte depuis STAGING_URL")
+  #         with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+  #             f.write(f"host={h}\n")
+  #         PY
 
-      - name: Calculer le SHA court
-        id: vars
-        run: echo "short-sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+  #     - name: Calculer le SHA court
+  #       id: vars
+  #       run: echo "short-sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
-      - name: Deploy via SSH — staging
-        uses: appleboy/ssh-action@v1
-        with:
-          host:     ${{ steps.staging-ssh.outputs.host }}
-          username: ${{ secrets.STAGING_SSH_USER }}
-          key:      ${{ secrets.STAGING_SSH_KEY }}
-          port:     ${{ secrets.STAGING_SSH_PORT || 22 }}
-          script: |
-            set -e
-            cd ${{ secrets.STAGING_DEPLOY_PATH || '/opt/mmotors/staging' }}
+  #     - name: Deploy via SSH — staging
+  #       uses: appleboy/ssh-action@v1
+  #       with:
+  #         host:     ${{ steps.staging-ssh.outputs.host }}
+  #         username: ${{ secrets.STAGING_SSH_USER }}
+  #         key:      ${{ secrets.STAGING_SSH_KEY }}
+  #         port:     ${{ secrets.STAGING_SSH_PORT || 22 }}
+  #         script: |
+  #           set -e
+  #           cd ${{ secrets.STAGING_DEPLOY_PATH || '/opt/mmotors/staging' }}
 
-            # Mise a jour du code
-            git fetch origin develop
-            git reset --hard origin/develop
+  #           # Mise a jour du code
+  #           git fetch origin develop
+  #           git reset --hard origin/develop
 
-            # Variables d'environnement staging
-            cp .env.staging .env
+  #           # Variables d'environnement staging
+  #           cp .env.staging .env
 
-            # Login GHCR depuis le serveur
-            echo "${{ secrets.GHCR_TOKEN }}" | \
-              docker login ghcr.io -u ${{ github.actor }} --password-stdin
+  #           # Login GHCR depuis le serveur
+  #           echo "${{ secrets.GHCR_TOKEN }}" | \
+  #             docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-            # Pull des nouvelles images
-            IMAGE_TAG=sha-${{ steps.vars.outputs.short-sha }} \
-              docker compose -f docker-compose.yml \
-                             -f docker-compose.staging.yml \
-              pull
+  #           # Pull des nouvelles images
+  #           IMAGE_TAG=sha-${{ steps.vars.outputs.short-sha }} \
+  #             docker compose -f docker-compose.yml \
+  #                            -f docker-compose.staging.yml \
+  #             pull
 
-            # Migrations Alembic avant redemarrage
-            IMAGE_TAG=sha-${{ steps.vars.outputs.short-sha }} \
-              docker compose -f docker-compose.yml \
-                             -f docker-compose.staging.yml \
-              run --rm backend alembic upgrade head
+  #           # Migrations Alembic avant redemarrage
+  #           IMAGE_TAG=sha-${{ steps.vars.outputs.short-sha }} \
+  #             docker compose -f docker-compose.yml \
+  #                            -f docker-compose.staging.yml \
+  #             run --rm backend alembic upgrade head
 
-            # Redemarrage (--wait attend le healthcheck)
-            IMAGE_TAG=sha-${{ steps.vars.outputs.short-sha }} \
-              docker compose -f docker-compose.yml \
-                             -f docker-compose.staging.yml \
-              up -d --remove-orphans --no-build --wait
+  #           # Redemarrage (--wait attend le healthcheck)
+  #           IMAGE_TAG=sha-${{ steps.vars.outputs.short-sha }} \
+  #             docker compose -f docker-compose.yml \
+  #                            -f docker-compose.staging.yml \
+  #             up -d --remove-orphans --no-build --wait
 
-            # Nettoyage images orphelines
-            docker image prune -f
+  #           # Nettoyage images orphelines
+  #           docker image prune -f
 
-            echo "Staging deploye — sha-${{ steps.vars.outputs.short-sha }}"
+  #           echo "Staging deploye — sha-${{ steps.vars.outputs.short-sha }}"
 
-      - name: Smoke test staging
-        env:
-          STAGING_URL: ${{ vars.STAGING_URL }}
-        run: |
-          sleep 10
-          BASE="${STAGING_URL%/}"
-          curl -sf --retry 5 --retry-delay 5 "${BASE}/api/health" || exit 1
-          echo "Health check staging OK"
+  #     - name: Smoke test staging
+  #       env:
+  #         STAGING_URL: ${{ vars.STAGING_URL }}
+  #       run: |
+  #         sleep 10
+  #         BASE="${STAGING_URL%/}"
+  #         curl -sf --retry 5 --retry-delay 5 "${BASE}/api/health" || exit 1
+  #         echo "Health check staging OK"
 
   # ──────────────────────────────────────────────────────────────────────────
   # JOB 12 — TESTS E2E PLAYWRIGHT (sur staging)
   # ──────────────────────────────────────────────────────────────────────────
-  test-e2e:
-    name: "🎭 Tests E2E Playwright"
-    runs-on: ubuntu-latest
-    needs: deploy-staging
-    if: ${{ !inputs.skip_tests }}
-    defaults:
-      run:
-        working-directory: frontend
+  
+  # test-e2e:
+  #   name: "🎭 Tests E2E Playwright"
+  #   runs-on: ubuntu-latest
+  #   needs: deploy-staging
+  #   if: ${{ !inputs.skip_tests }}
+  #   defaults:
+  #     run:
+  #       working-directory: frontend
 
-    steps:
-      - uses: actions/checkout@v4
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
-          cache-dependency-path: frontend/package-lock.json
+  #     - uses: actions/setup-node@v4
+  #       with:
+  #         node-version: ${{ env.NODE_VERSION }}
+  #         cache: "npm"
+  #         cache-dependency-path: frontend/package-lock.json
 
-      - name: Installer les dependances
-        run: npm ci --prefer-offline
+  #     - name: Installer les dependances
+  #       run: npm ci --prefer-offline
 
-      - name: Installer les navigateurs Playwright
-        run: npx playwright install --with-deps chromium firefox
+  #     - name: Installer les navigateurs Playwright
+  #       run: npx playwright install --with-deps chromium firefox
 
-      - name: Playwright — tests E2E
-        run: npx playwright test --reporter=html,github
-        env:
-          PLAYWRIGHT_BASE_URL: ${{ vars.STAGING_URL }}
-          CI: true
-        timeout-minutes: 20
+  #     - name: Playwright — tests E2E
+  #       run: npx playwright test --reporter=html,github
+  #       env:
+  #         PLAYWRIGHT_BASE_URL: ${{ vars.STAGING_URL }}
+  #         CI: true
+  #       timeout-minutes: 20
 
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: playwright-report
-          path: frontend/playwright-report/
-          retention-days: 14
+  #     - uses: actions/upload-artifact@v4
+  #       if: always()
+  #       with:
+  #         name: playwright-report
+  #         path: frontend/playwright-report/
+  #         retention-days: 14
 
   # ──────────────────────────────────────────────────────────────────────────
   # JOB 13 — DEPLOIEMENT PRODUCTION (branche main)
   # Approbation manuelle via GitHub Environment protection rules
   # ──────────────────────────────────────────────────────────────────────────
-  deploy-production:
-    name: "🏁 Deploy → Production (Docker Compose) — Approbation requise"
-    runs-on: ubuntu-latest
-    needs: [build-images, test-e2e]
-    if: |
-      always() && !failure() && !cancelled() &&
-      (github.ref == 'refs/heads/main' ||
-       (github.event_name == 'workflow_dispatch' && inputs.environment == 'production'))
-    environment:
-      name: production
-      url: ${{ vars.PRODUCTION_URL }}
+  
+  # deploy-production:
+  #   name: "🏁 Deploy → Production (Docker Compose) — Approbation requise"
+  #   runs-on: ubuntu-latest
+  #   needs: [build-images, test-e2e]
+  #   if: |
+  #     always() && !failure() && !cancelled() &&
+  #     (github.ref == 'refs/heads/main' ||
+  #      (github.event_name == 'workflow_dispatch' && inputs.environment == 'production'))
+  #   environment:
+  #     name: production
+  #     url: ${{ vars.PRODUCTION_URL }}
 
-    steps:
-      - uses: actions/checkout@v4
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      - name: Extraire l'hôte SSH depuis PRODUCTION_URL
-        id: prod-ssh
-        env:
-          PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
-        run: |
-          python3 <<'PY'
-          import os, urllib.parse
-          u = os.environ.get("PRODUCTION_URL", "").strip()
-          if not u:
-              raise SystemExit("Variable de dépôt PRODUCTION_URL manquante ou vide")
-          if not u.startswith(("http://", "https://")):
-              u = "https://" + u
-          h = urllib.parse.urlparse(u).hostname
-          if not h:
-              raise SystemExit("Impossible d'extraire l'hôte depuis PRODUCTION_URL")
-          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
-              f.write(f"host={h}\n")
-          PY
+  #     - name: Extraire l'hôte SSH depuis PRODUCTION_URL
+  #       id: prod-ssh
+  #       env:
+  #         PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
+  #       run: |
+  #         python3 <<'PY'
+  #         import os, urllib.parse
+  #         u = os.environ.get("PRODUCTION_URL", "").strip()
+  #         if not u:
+  #             raise SystemExit("Variable de dépôt PRODUCTION_URL manquante ou vide")
+  #         if not u.startswith(("http://", "https://")):
+  #             u = "https://" + u
+  #         h = urllib.parse.urlparse(u).hostname
+  #         if not h:
+  #             raise SystemExit("Impossible d'extraire l'hôte depuis PRODUCTION_URL")
+  #         with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+  #             f.write(f"host={h}\n")
+  #         PY
 
-      - name: Calculer le SHA court
-        id: vars
-        run: echo "short-sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+  #     - name: Calculer le SHA court
+  #       id: vars
+  #       run: echo "short-sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
-      - name: Dump PostgreSQL (sauvegarde pre-deploy)
-        uses: appleboy/ssh-action@v1
-        with:
-          host:     ${{ steps.prod-ssh.outputs.host }}
-          username: ${{ secrets.PROD_SSH_USER }}
-          key:      ${{ secrets.PROD_SSH_KEY }}
-          port:     ${{ secrets.PROD_SSH_PORT || 22 }}
-          script: |
-            set -e
-            DEPLOY_PATH=${{ secrets.PROD_DEPLOY_PATH || '/opt/mmotors/production' }}
-            BACKUP_DIR="$DEPLOY_PATH/backups"
-            mkdir -p "$BACKUP_DIR"
+  #     - name: Dump PostgreSQL (sauvegarde pre-deploy)
+  #       uses: appleboy/ssh-action@v1
+  #       with:
+  #         host:     ${{ steps.prod-ssh.outputs.host }}
+  #         username: ${{ secrets.PROD_SSH_USER }}
+  #         key:      ${{ secrets.PROD_SSH_KEY }}
+  #         port:     ${{ secrets.PROD_SSH_PORT || 22 }}
+  #         script: |
+  #           set -e
+  #           DEPLOY_PATH=${{ secrets.PROD_DEPLOY_PATH || '/opt/mmotors/production' }}
+  #           BACKUP_DIR="$DEPLOY_PATH/backups"
+  #           mkdir -p "$BACKUP_DIR"
 
-            docker compose -f "$DEPLOY_PATH/docker-compose.yml" \
-              exec -T postgres \
-              pg_dump -U mmotors mmotors \
-              > "$BACKUP_DIR/mmotors_$(date +%Y%m%d_%H%M%S).sql"
+  #           docker compose -f "$DEPLOY_PATH/docker-compose.yml" \
+  #             exec -T postgres \
+  #             pg_dump -U mmotors mmotors \
+  #             > "$BACKUP_DIR/mmotors_$(date +%Y%m%d_%H%M%S).sql"
 
-            # Garder uniquement les 10 derniers dumps
-            ls -t "$BACKUP_DIR"/*.sql | tail -n +11 | xargs -r rm
+  #           # Garder uniquement les 10 derniers dumps
+  #           ls -t "$BACKUP_DIR"/*.sql | tail -n +11 | xargs -r rm
 
-            echo "Dump PostgreSQL OK"
+  #           echo "Dump PostgreSQL OK"
 
-      - name: Deploy via SSH — production
-        uses: appleboy/ssh-action@v1
-        with:
-          host:     ${{ steps.prod-ssh.outputs.host }}
-          username: ${{ secrets.PROD_SSH_USER }}
-          key:      ${{ secrets.PROD_SSH_KEY }}
-          port:     ${{ secrets.PROD_SSH_PORT || 22 }}
-          script: |
-            set -e
-            cd ${{ secrets.PROD_DEPLOY_PATH || '/opt/mmotors/production' }}
+  #     - name: Deploy via SSH — production
+  #       uses: appleboy/ssh-action@v1
+  #       with:
+  #         host:     ${{ steps.prod-ssh.outputs.host }}
+  #         username: ${{ secrets.PROD_SSH_USER }}
+  #         key:      ${{ secrets.PROD_SSH_KEY }}
+  #         port:     ${{ secrets.PROD_SSH_PORT || 22 }}
+  #         script: |
+  #           set -e
+  #           cd ${{ secrets.PROD_DEPLOY_PATH || '/opt/mmotors/production' }}
 
-            # Sauvegarder la ref Git actuelle pour rollback
-            git rev-parse HEAD > .last-stable-sha
+  #           # Sauvegarder la ref Git actuelle pour rollback
+  #           git rev-parse HEAD > .last-stable-sha
 
-            # Mise a jour du code
-            git fetch origin main
-            git reset --hard origin/main
+  #           # Mise a jour du code
+  #           git fetch origin main
+  #           git reset --hard origin/main
 
-            cp .env.production .env
+  #           cp .env.production .env
 
-            # Login GHCR
-            echo "${{ secrets.GHCR_TOKEN }}" | \
-              docker login ghcr.io -u ${{ github.actor }} --password-stdin
+  #           # Login GHCR
+  #           echo "${{ secrets.GHCR_TOKEN }}" | \
+  #             docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-            # Pull des nouvelles images
-            IMAGE_TAG=sha-${{ steps.vars.outputs.short-sha }} \
-              docker compose -f docker-compose.yml \
-                             -f docker-compose.production.yml \
-              pull
+  #           # Pull des nouvelles images
+  #           IMAGE_TAG=sha-${{ steps.vars.outputs.short-sha }} \
+  #             docker compose -f docker-compose.yml \
+  #                            -f docker-compose.production.yml \
+  #             pull
 
-            # Migrations Alembic
-            IMAGE_TAG=sha-${{ steps.vars.outputs.short-sha }} \
-              docker compose -f docker-compose.yml \
-                             -f docker-compose.production.yml \
-              run --rm backend alembic upgrade head
+  #           # Migrations Alembic
+  #           IMAGE_TAG=sha-${{ steps.vars.outputs.short-sha }} \
+  #             docker compose -f docker-compose.yml \
+  #                            -f docker-compose.production.yml \
+  #             run --rm backend alembic upgrade head
 
-            # Demarrage
-            IMAGE_TAG=sha-${{ steps.vars.outputs.short-sha }} \
-              docker compose -f docker-compose.yml \
-                             -f docker-compose.production.yml \
-              up -d --remove-orphans --no-build --wait
+  #           # Demarrage
+  #           IMAGE_TAG=sha-${{ steps.vars.outputs.short-sha }} \
+  #             docker compose -f docker-compose.yml \
+  #                            -f docker-compose.production.yml \
+  #             up -d --remove-orphans --no-build --wait
 
-            docker image prune -f
+  #           docker image prune -f
 
-            echo "Production deployee — sha-${{ steps.vars.outputs.short-sha }}"
+  #           echo "Production deployee — sha-${{ steps.vars.outputs.short-sha }}"
 
-      - name: Smoke test production
-        env:
-          PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
-        run: |
-          sleep 10
-          BASE="${PRODUCTION_URL%/}"
-          curl -sf --retry 5 --retry-delay 5 "${BASE}/api/health" || exit 1
-          curl -sf --retry 3 --retry-delay 3 "${BASE}" || exit 1
-          echo "Health check production OK"
+  #     - name: Smoke test production
+  #       env:
+  #         PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
+  #       run: |
+  #         sleep 10
+  #         BASE="${PRODUCTION_URL%/}"
+  #         curl -sf --retry 5 --retry-delay 5 "${BASE}/api/health" || exit 1
+  #         curl -sf --retry 3 --retry-delay 3 "${BASE}" || exit 1
+  #         echo "Health check production OK"
 
-      - name: Rollback automatique en cas d'echec
-        if: failure()
-        uses: appleboy/ssh-action@v1
-        with:
-          host:     ${{ steps.prod-ssh.outputs.host }}
-          username: ${{ secrets.PROD_SSH_USER }}
-          key:      ${{ secrets.PROD_SSH_KEY }}
-          port:     ${{ secrets.PROD_SSH_PORT || 22 }}
-          script: |
-            cd ${{ secrets.PROD_DEPLOY_PATH || '/opt/mmotors/production' }}
-            echo "Echec — rollback vers $(cat .last-stable-sha)"
+  #     - name: Rollback automatique en cas d'echec
+  #       if: failure()
+  #       uses: appleboy/ssh-action@v1
+  #       with:
+  #         host:     ${{ steps.prod-ssh.outputs.host }}
+  #         username: ${{ secrets.PROD_SSH_USER }}
+  #         key:      ${{ secrets.PROD_SSH_KEY }}
+  #         port:     ${{ secrets.PROD_SSH_PORT || 22 }}
+  #         script: |
+  #           cd ${{ secrets.PROD_DEPLOY_PATH || '/opt/mmotors/production' }}
+  #           echo "Echec — rollback vers $(cat .last-stable-sha)"
 
-            LAST_SHA=$(cat .last-stable-sha)
-            git checkout "$LAST_SHA"
+  #           LAST_SHA=$(cat .last-stable-sha)
+  #           git checkout "$LAST_SHA"
 
-            docker compose -f docker-compose.yml \
-                           -f docker-compose.production.yml \
-              up -d --remove-orphans --no-build --wait
+  #           docker compose -f docker-compose.yml \
+  #                          -f docker-compose.production.yml \
+  #             up -d --remove-orphans --no-build --wait
 
-            echo "Rollback effectue vers $LAST_SHA"
+  #           echo "Rollback effectue vers $LAST_SHA"
 
   # ──────────────────────────────────────────────────────────────────────────
   # JOB 14 — NOTIFICATION SLACK
@@ -872,25 +877,22 @@ jobs:
   notify:
     name: "📣 Notification Slack"
     runs-on: ubuntu-latest
-    needs: [deploy-staging, deploy-production]
+    # Déploiements SSH commentés : on rattache la notif fin de pipeline à Trivy.
+    needs: [trivy-scan]
     if: always()
 
     steps:
       - name: Determiner le statut global
         id: status
         run: |
-          if [[ "${{ needs.deploy-production.result }}" == "success" ]]; then
-            echo "emoji=✅"          >> $GITHUB_OUTPUT
-            echo "env=Production"   >> $GITHUB_OUTPUT
-            echo "color=good"       >> $GITHUB_OUTPUT
-          elif [[ "${{ needs.deploy-staging.result }}" == "success" ]]; then
-            echo "emoji=🚀"         >> $GITHUB_OUTPUT
-            echo "env=Staging"      >> $GITHUB_OUTPUT
-            echo "color=good"       >> $GITHUB_OUTPUT
+          if [[ "${{ needs.trivy-scan.result }}" == "success" ]]; then
+            echo "emoji=✅" >> $GITHUB_OUTPUT
+            echo "env=CI + images + Trivy OK" >> $GITHUB_OUTPUT
+            echo "color=good" >> $GITHUB_OUTPUT
           else
-            echo "emoji=🔴"         >> $GITHUB_OUTPUT
-            echo "env=Echec"        >> $GITHUB_OUTPUT
-            echo "color=danger"     >> $GITHUB_OUTPUT
+            echo "emoji=🔴" >> $GITHUB_OUTPUT
+            echo "env=Echec pipeline" >> $GITHUB_OUTPUT
+            echo "color=danger" >> $GITHUB_OUTPUT
           fi
 
       - name: Notification Slack

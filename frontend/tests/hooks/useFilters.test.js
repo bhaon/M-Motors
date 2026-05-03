@@ -1,19 +1,19 @@
 import { act, renderHook } from "@testing-library/react";
 import { useFilters } from "@/hooks/useFilters";
-import { VEHICLES } from "@/data/vehicles";
+import { SAMPLE_VEHICLES } from "../fixtures/vehicles";
 
 describe("useFilters", () => {
   it("retourne les marques triées et uniques", () => {
-    const { result } = renderHook(() => useFilters());
-    const expected = [...new Set(VEHICLES.map((v) => v.make))].sort((a, b) =>
-      a.localeCompare(b),
+    const { result } = renderHook(() => useFilters(SAMPLE_VEHICLES));
+    const expected = [...new Set(SAMPLE_VEHICLES.map((v) => v.make))].sort(
+      (a, b) => a.localeCompare(b),
     );
 
     expect(result.current.marques).toEqual(expected);
   });
 
   it("filtre les véhicules par marque et réinitialise le modèle", () => {
-    const { result } = renderHook(() => useFilters());
+    const { result } = renderHook(() => useFilters(SAMPLE_VEHICLES));
 
     act(() => {
       result.current.setField("modele", "Test");
@@ -27,7 +27,7 @@ describe("useFilters", () => {
   });
 
   it("filtre par type lld uniquement", () => {
-    const { result } = renderHook(() => useFilters());
+    const { result } = renderHook(() => useFilters(SAMPLE_VEHICLES));
 
     act(() => {
       result.current.setType("lld");
@@ -38,7 +38,7 @@ describe("useFilters", () => {
   });
 
   it("filtre par type achat uniquement", () => {
-    const { result } = renderHook(() => useFilters());
+    const { result } = renderHook(() => useFilters(SAMPLE_VEHICLES));
 
     act(() => {
       result.current.setType("achat");
@@ -49,7 +49,7 @@ describe("useFilters", () => {
   });
 
   it("filtre par km max et prix max", () => {
-    const { result } = renderHook(() => useFilters());
+    const { result } = renderHook(() => useFilters(SAMPLE_VEHICLES));
 
     act(() => {
       result.current.setField("kmMax", 50000);
@@ -61,7 +61,7 @@ describe("useFilters", () => {
   });
 
   it("réinitialise les filtres", () => {
-    const { result } = renderHook(() => useFilters());
+    const { result } = renderHook(() => useFilters(SAMPLE_VEHICLES));
 
     act(() => {
       result.current.setField("marque", "Peugeot");
@@ -69,11 +69,11 @@ describe("useFilters", () => {
     });
 
     expect(result.current.filters.marque).toBe("");
-    expect(result.current.filtered.length).toBe(VEHICLES.length);
+    expect(result.current.filtered.length).toBe(SAMPLE_VEHICLES.length);
   });
 
   it("filtre par motorisation", () => {
-    const { result } = renderHook(() => useFilters());
+    const { result } = renderHook(() => useFilters(SAMPLE_VEHICLES));
 
     act(() => {
       result.current.setField("moteur", "Diesel");
@@ -85,7 +85,7 @@ describe("useFilters", () => {
   });
 
   it("filtre par modèle lorsque la marque est fixée", () => {
-    const { result } = renderHook(() => useFilters());
+    const { result } = renderHook(() => useFilters(SAMPLE_VEHICLES));
 
     act(() => {
       result.current.setField("marque", "Peugeot");
@@ -99,7 +99,7 @@ describe("useFilters", () => {
   });
 
   it("exclut tout si le modèle ne correspond à aucun véhicule", () => {
-    const { result } = renderHook(() => useFilters());
+    const { result } = renderHook(() => useFilters(SAMPLE_VEHICLES));
 
     act(() => {
       result.current.setField("marque", "Peugeot");
@@ -110,7 +110,7 @@ describe("useFilters", () => {
   });
 
   it("accepte une liste source personnalisée", () => {
-    const subset = VEHICLES.filter((v) => v.make === "Toyota");
+    const subset = SAMPLE_VEHICLES.filter((v) => v.make === "Toyota");
     const { result } = renderHook(() => useFilters(subset));
 
     expect(result.current.marques).toEqual(["Toyota"]);
