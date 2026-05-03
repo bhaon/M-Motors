@@ -16,16 +16,16 @@
    Variables CSS globales
    ─────────────────────── */
 :root {
-  --navy: #0d1b4b;                         /* Couleur bleu marine principale */
-  --navy2: #1a2d6b;                        /* Variante secondaire du bleu */
-  --cyan: #00b4d8;                         /* Accent cyan clair */
-  --cyan2: #0090b0;                        /* Variante cyan plus foncé */
-  --gold: #f4a024;                         /* Accent doré (boutons, etc.) */
-  --white: #fff;                           /* Blanc pur */
-  --off: #f7f8fc;                          /* Arrière-plan off-white */
-  --muted: #6b7280;                        /* Texte gris atténué */
-  --border: #e5e7eb;                       /* Couleur de bordure */
-  --radius: 12px;                          /* Rayon de bordure pour les cards */
+  --navy: #0d1b4b; /* Couleur bleu marine principale */
+  --navy2: #1a2d6b; /* Variante secondaire du bleu */
+  --cyan: #00b4d8; /* Accent cyan clair */
+  --cyan2: #0090b0; /* Variante cyan plus foncé */
+  --gold: #f4a024; /* Accent doré (boutons, etc.) */
+  --white: #fff; /* Blanc pur */
+  --off: #f7f8fc; /* Arrière-plan off-white */
+  --muted: #6b7280; /* Texte gris atténué */
+  --border: #e5e7eb; /* Couleur de bordure */
+  --radius: 12px; /* Rayon de bordure pour les cards */
   --shadow: 0 2px 16px rgba(13, 27, 75, 0.1); /* Ombre légère */
 }
 
@@ -42,10 +42,10 @@
    Style de base du <body>
    ────────────────────────────── */
 body {
-  font-family: "DM Sans", sans-serif;      /* Police principale du site */
-  background: var(--off);                  /* Couleur de fond globale */
-  color: var(--navy);                      /* Couleur de texte principale */
-  min-height: 100vh;                       /* Hauteur minimale : plein écran */
+  font-family: "DM Sans", sans-serif; /* Police principale du site */
+  background: var(--off); /* Couleur de fond globale */
+  color: var(--navy); /* Couleur de texte principale */
+  min-height: 100vh; /* Hauteur minimale : plein écran */
 }
 
 /* ────────────────────────────────────────
@@ -78,11 +78,11 @@ body {
    ────────────────────────────── */
 .toast-hidden {
   transform: translateY(80px); /* Slide bas */
-  opacity: 0;                  /* Invisible */
+  opacity: 0; /* Invisible */
 }
 .toast-visible {
-  transform: translateY(0);    /* Slide en place */
-  opacity: 1;                  /* Visible */
+  transform: translateY(0); /* Slide en place */
+  opacity: 1; /* Visible */
   transition:
     transform 0.3s,
     opacity 0.3s;

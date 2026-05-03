@@ -69,7 +69,9 @@ export async function fetchVehicles(): Promise<Vehicle[]> {
   } catch (e) {
     if (e instanceof VehiclesApiError) throw e;
     throw new VehiclesApiError(
-      e instanceof Error ? e.message : "Erreur lors du chargement du catalogue.",
+      e instanceof Error
+        ? e.message
+        : "Erreur lors du chargement du catalogue.",
     );
   }
 }

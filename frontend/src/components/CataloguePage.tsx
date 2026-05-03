@@ -40,7 +40,9 @@ function EmptyCatalogNotice() {
       >
         Catalogue vide
       </h3>
-      <p style={{ color: "var(--muted)", lineHeight: 1.6, marginBottom: "1rem" }}>
+      <p
+        style={{ color: "var(--muted)", lineHeight: 1.6, marginBottom: "1rem" }}
+      >
         Aucun véhicule n’est encore enregistré dans la base. Après une nouvelle
         installation, importez les données avec le script de peuplement côté
         backend&nbsp;: depuis le répertoire <code>backend</code>, exécutez{" "}
@@ -49,7 +51,8 @@ function EmptyCatalogNotice() {
         <code>SECRET_KEY</code>, etc.).
       </p>
       <p style={{ color: "var(--muted)", fontSize: "0.9rem" }}>
-        Une fois le seed terminé, rechargez cette page pour afficher le catalogue.
+        Une fois le seed terminé, rechargez cette page pour afficher le
+        catalogue.
       </p>
     </div>
   );
