@@ -596,7 +596,7 @@ jobs:
   deploy-staging:
     name: "🚀 Deploy → Staging (Docker Compose)"
     runs-on: ubuntu-latest
-    needs: build-images
+    needs: trivy-scan
     if: github.ref == 'refs/heads/develop'
     environment:
       name: staging
