@@ -1,9 +1,9 @@
 "use client";
 
 /**
- * Affiche une erreur lorsque le catalogue (ou une autre partie de la page) échoue côté serveur ou client.
+ * Frontière d’erreur Next.js (fichier `error.tsx`) : affiche l’échec du rendu côté serveur ou client.
  */
-export default function Error({
+export default function AppError({
   error,
   reset,
 }: {
