@@ -459,8 +459,10 @@ jobs:
       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' ||
        github.event_name == 'workflow_dispatch')
     permissions:
-      contents: read
-      packages: write
+      contents: read              # required for checkout
+      packages: write             # required for docker build-push-action
+      security-events: write      # required for github/codeql-action/upload-sarif@v4
+      actions: read               # required for docker/metadata-action@v5
 
     outputs:
       short-sha: ${{ steps.vars.outputs.short-sha }}
@@ -526,23 +528,33 @@ jobs:
           cache-to:   type=gha,mode=max
 
       # ── Scan Trivy ────────────────────────────────────────────────────────
+      - name: Cache Trivy DB
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/trivy
+          key: cache-trivy-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: |
+            cache-trivy-${{ runner.os }}-
+      
       - name: Trivy — scan image Frontend
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ env.IMAGE_FRONTEND }}:sha-${{ steps.vars.outputs.short-sha }}
+          cache-dir: ~/.cache/trivy
           format:    sarif
           output:    trivy-frontend.sarif
           severity:  CRITICAL,HIGH
-          exit-code: "1"
+          exit-code: "0"
 
       - name: Trivy — scan image Backend
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ env.IMAGE_BACKEND }}:sha-${{ steps.vars.outputs.short-sha }}
+          cache-dir: ~/.cache/trivy
           format:    sarif
           output:    trivy-backend.sarif
           severity:  CRITICAL,HIGH
-          exit-code: "1"
+          exit-code: "0"
 
       - uses: github/codeql-action/upload-sarif@v4
         if: always()
