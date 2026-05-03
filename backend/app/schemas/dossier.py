@@ -15,9 +15,9 @@ class PieceOut(BaseModel):
 class HistoriqueOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
-    ancien_status: Optional[str]
+    ancien_status: Optional[str] = None
     nouveau_status: str
-    commentaire: Optional[str]
+    commentaire: Optional[str] = None
     created_at: datetime
 
 
@@ -33,10 +33,10 @@ class DossierOut(BaseModel):
     type: DossierTypeEnum
     status: DossierStatusEnum
     vehicle_id: int
-    motif_rejet: Optional[str]
-    submitted_at: Optional[datetime]
-    validated_at: Optional[datetime]
-    rejected_at: Optional[datetime]
+    motif_rejet: Optional[str] = None
+    submitted_at: Optional[datetime] = None
+    validated_at: Optional[datetime] = None
+    rejected_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
     pieces: List[PieceOut] = []
