@@ -62,7 +62,8 @@ export default function Navbar() {
         >
           À propos
         </Link>
-        <button
+        <Link
+          href="/back-office/login"
           style={{
             background: "var(--cyan)",
             color: "var(--white)",
@@ -73,10 +74,12 @@ export default function Navbar() {
             fontWeight: 600,
             cursor: "pointer",
             fontFamily: "DM Sans, sans-serif",
+            textDecoration: "none",
+            display: "inline-block",
           }}
         >
-          Mon espace
-        </button>
+          Espace pro
+        </Link>
       </div>
     </nav>
   );

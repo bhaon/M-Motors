@@ -1,5 +1,5 @@
 from typing import Optional, List
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
 from app.models.vehicle import MoteurEnum
 
 
@@ -89,6 +89,14 @@ class VehicleCreate(BaseModel):
     spec_couleur: str
     spec_places: int = 5
     spec_puissance: str
+    visible_catalogue: bool = True
+
+    @model_validator(mode="after")
+    def mensualite_si_lld(self) -> "VehicleCreate":
+        """US-05-01 — une offre LLD impose une mensualité."""
+        if self.lld and self.mensualite is None:
+            raise ValueError("mensualite est requise lorsque lld est activé")
+        return self
 
 
 class VehicleUpdate(BaseModel):

@@ -75,6 +75,17 @@ def test_fiche_vehicule_404_et_ok(client: TestClient, db: Session) -> None:
     assert body["options"] == []
 
 
+def test_bo_create_lld_exige_mensualite(client: TestClient, db: Session) -> None:
+    """US-05-01 — offre LLD sans mensualité refusée."""
+    g = create_user(db, role=RoleEnum.gestionnaire)
+    h = auth_header(g)
+    p = _vehicle_payload()
+    p["lld"] = True
+    p["mensualite"] = None
+    r = client.post("/api/v1/vehicules", json=p, headers=h)
+    assert r.status_code == 422
+
+
 def test_bo_vehicule_refuse_client(client: TestClient, db: Session) -> None:
     """Un client ne peut pas créer de véhicule."""
     u = create_user(db, role=RoleEnum.client)
