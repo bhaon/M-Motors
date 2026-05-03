@@ -43,6 +43,7 @@ env:
   REGISTRY: ghcr.io
   IMAGE_FRONTEND: ghcr.io/${{ github.repository_owner }}/mmotors-frontend
   IMAGE_BACKEND:  ghcr.io/${{ github.repository_owner }}/mmotors-backend
+  
   # SonarCloud: préférer des Variables de dépôt pour éviter les écarts push/manual.
   SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY || 'mmotors' }}
   SONAR_ORGANIZATION: ${{ vars.SONAR_ORGANIZATION || github.repository_owner }}
@@ -461,7 +462,6 @@ jobs:
     permissions:
       contents: read              # required for checkout
       packages: write             # required for docker build-push-action
-      security-events: write      # required for github/codeql-action/upload-sarif@v4
       actions: read               # required for docker/metadata-action@v5
 
     outputs:
@@ -527,19 +527,38 @@ jobs:
           cache-from: type=gha
           cache-to:   type=gha,mode=max
 
-      # ── Scan Trivy ────────────────────────────────────────────────────────
+  # ──────────────────────────────────────────────────────────────────────────
+  # JOB 10 — SCAN TRIVY (images GHCR)
+  # ──────────────────────────────────────────────────────────────────────────
+  trivy-scan:
+    name: "🔍 Scan Trivy (images Docker)"
+    runs-on: ubuntu-latest
+    needs: [build-images]
+    permissions:
+      contents: read
+      packages: read
+      actions: read
+      security-events: write  # upload-sarif vers l’onglet Security / Code scanning
+
+    steps:
+      - name: Login GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Cache Trivy DB
         uses: actions/cache@v4
         with:
           path: ~/.cache/trivy
           key: cache-trivy-${{ runner.os }}-${{ github.run_id }}
-          restore-keys: |
-            cache-trivy-${{ runner.os }}-
-      
+          restore-keys: cache-trivy-${{ runner.os }}-
+
       - name: Trivy — scan image Frontend
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.IMAGE_FRONTEND }}:sha-${{ steps.vars.outputs.short-sha }}
+          image-ref: ${{ env.IMAGE_FRONTEND }}:sha-${{ needs.build-images.outputs.short-sha }}
           cache-dir: ~/.cache/trivy
           format:    sarif
           output:    trivy-frontend.sarif
@@ -549,20 +568,29 @@ jobs:
       - name: Trivy — scan image Backend
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.IMAGE_BACKEND }}:sha-${{ steps.vars.outputs.short-sha }}
+          image-ref: ${{ env.IMAGE_BACKEND }}:sha-${{ needs.build-images.outputs.short-sha }}
           cache-dir: ~/.cache/trivy
           format:    sarif
           output:    trivy-backend.sarif
           severity:  CRITICAL,HIGH
           exit-code: "0"
 
-      - uses: github/codeql-action/upload-sarif@v4
+      - name: Upload SARIF — Backend
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
-          sarif_file: "."
+          sarif_file: trivy-backend.sarif
+          category: trivy-backend
+
+      - name: Upload SARIF — Frontend
+        uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: trivy-frontend.sarif
+          category: trivy-frontend
 
   # ──────────────────────────────────────────────────────────────────────────
-  # JOB 10 — DEPLOIEMENT STAGING (branche develop)
+  # JOB 11 — DEPLOIEMENT STAGING (branche develop)
   # SSH vers serveur local — docker compose up
   # ──────────────────────────────────────────────────────────────────────────
   deploy-staging:
@@ -656,7 +684,7 @@ jobs:
           echo "Health check staging OK"
 
   # ──────────────────────────────────────────────────────────────────────────
-  # JOB 11 — TESTS E2E PLAYWRIGHT (sur staging)
+  # JOB 12 — TESTS E2E PLAYWRIGHT (sur staging)
   # ──────────────────────────────────────────────────────────────────────────
   test-e2e:
     name: "🎭 Tests E2E Playwright"
@@ -697,7 +725,7 @@ jobs:
           retention-days: 14
 
   # ──────────────────────────────────────────────────────────────────────────
-  # JOB 12 — DEPLOIEMENT PRODUCTION (branche main)
+  # JOB 13 — DEPLOIEMENT PRODUCTION (branche main)
   # Approbation manuelle via GitHub Environment protection rules
   # ──────────────────────────────────────────────────────────────────────────
   deploy-production:
@@ -839,7 +867,7 @@ jobs:
             echo "Rollback effectue vers $LAST_SHA"
 
   # ──────────────────────────────────────────────────────────────────────────
-  # JOB 13 — NOTIFICATION SLACK
+  # JOB 14 — NOTIFICATION SLACK
   # ──────────────────────────────────────────────────────────────────────────
   notify:
     name: "📣 Notification Slack"
